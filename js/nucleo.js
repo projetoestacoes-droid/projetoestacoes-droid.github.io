@@ -436,67 +436,38 @@
     var area = casca();
     var cartao = el("section", "on-cartao on-login");
     cartao.appendChild(el("h1", null, "Entrar"));
-    cartao.appendChild(el("p", "on-sutil", "Digite o e-mail cadastrado pela coordenação. Você entra sem senha, pelo link (ou código) enviado ao seu e-mail."));
+    cartao.appendChild(el("p", "on-sutil", "Acesso restrito. Entre com o e-mail e a senha cadastrados pela coordenação."));
     if (erroLink) cartao.appendChild(el("p", "on-aviso on-aviso-erro", erroLink));
-    var form1 = el("form", "on-form");
+    var form = el("form", "on-form");
     var lbl = el("label", null, "E-mail");
-    var email = el("input", "on-campo"); email.type = "email"; email.autocomplete = "email"; email.required = true; email.inputMode = "email";
-    lbl.appendChild(email); form1.appendChild(lbl);
-    var enviar = el("button", "on-btn on-btn-pri", "Receber link de acesso"); enviar.type = "submit";
-    form1.appendChild(enviar);
-    var form2 = el("form", "on-form"); form2.hidden = true;
-    form2.appendChild(el("p", "on-sutil", "Abra o e-mail e toque no link de acesso: esta página entra sozinha. Se o e-mail trouxer um código de 6 dígitos, você também pode digitá-lo aqui."));
-    var lbl2 = el("label", null, "Código (se o e-mail trouxer)");
-    var codigo = el("input", "on-campo on-codigo"); codigo.inputMode = "numeric"; codigo.autocomplete = "one-time-code";
-    codigo.pattern = "[0-9]{6,10}"; codigo.maxLength = 10; codigo.required = true;
-    lbl2.appendChild(codigo); form2.appendChild(lbl2);
+    var email = el("input", "on-campo"); email.type = "email"; email.autocomplete = "username"; email.required = true; email.inputMode = "email";
+    lbl.appendChild(email); form.appendChild(lbl);
+    var lblS = el("label", null, "Senha");
+    var senha = el("input", "on-campo"); senha.type = "password"; senha.autocomplete = "current-password"; senha.required = true;
+    lblS.appendChild(senha); form.appendChild(lblS);
     var entrar = el("button", "on-btn on-btn-pri", "Entrar"); entrar.type = "submit";
-    form2.appendChild(entrar);
-    var linha = el("div", "on-linha");
-    var reenviar = botao("Reenviar e-mail", "on-btn-sec on-btn-peq");
-    var trocar = botao("Trocar e-mail", "on-btn-sec on-btn-peq", function () { form2.hidden = true; form1.hidden = false; email.focus(); });
-    linha.appendChild(reenviar); linha.appendChild(trocar); form2.appendChild(linha);
+    form.appendChild(entrar);
     var msg = el("p", "on-msg"); msg.setAttribute("aria-live", "polite");
-    cartao.appendChild(form1); cartao.appendChild(form2); cartao.appendChild(msg);
-    cartao.appendChild(el("p", "on-sutil on-peq", "Em aparelho compartilhado, toque em \"Sair\" ao terminar."));
+    cartao.appendChild(form); cartao.appendChild(msg);
+    cartao.appendChild(el("p", "on-sutil on-peq", "Esqueceu a senha? Fale com a coordenação. Em aparelho compartilhado, toque em \"Sair\" ao terminar."));
     area.appendChild(cartao);
-    var espera = 0, relogio = null;
-    function pedirCodigo() {
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
       var e = email.value.trim().toLowerCase();
-      if (!e) return;
-      if (!estaOnline()) { msg.textContent = "Sem conexão. Conecte-se para receber o código."; return; }
-      enviar.disabled = true; reenviar.disabled = true; msg.textContent = "Enviando…";
-      Online.sb.auth.signInWithOtp({ email: e, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } }).then(function (r) {
-        enviar.disabled = false;
+      if (!e || !senha.value) return;
+      if (!estaOnline()) { msg.textContent = "Sem conexão. Conecte-se para entrar."; return; }
+      entrar.disabled = true; msg.textContent = "Entrando…";
+      Online.sb.auth.signInWithPassword({ email: e, password: senha.value }).then(function (r) {
+        entrar.disabled = false;
         if (r.error) {
           var m = r.error.message || "";
-          msg.textContent = /autoriz|not allowed|signups? not allowed|403|hook/i.test(m) ? "E-mail não autorizado. Fale com a coordenação." :
-                            /rate|limit|seconds/i.test(m) ? "Muitos pedidos seguidos. Aguarde um minuto e tente de novo." :
-                            "Não foi possível enviar o código: " + m;
-          reenviar.disabled = false;
+          senha.value = "";
+          msg.textContent = /invalid login|credentials|not found/i.test(m) ? "E-mail ou senha incorretos." :
+                            /rate|limit|seconds|too many/i.test(m) ? "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo." :
+                            "Não foi possível entrar: " + m;
           return;
         }
-        form1.hidden = true; form2.hidden = false; codigo.value = ""; codigo.focus();
-        msg.textContent = "Enviamos um e-mail para " + e + " com um link de acesso (e, quando disponível, um código de 6 dígitos). Confira também a caixa de spam.";
-        espera = 60; reenviar.disabled = true;
-        clearInterval(relogio);
-        relogio = setInterval(function () {
-          espera--; reenviar.textContent = espera > 0 ? "Reenviar e-mail (" + espera + " s)" : "Reenviar e-mail";
-          if (espera <= 0) { clearInterval(relogio); reenviar.disabled = false; }
-        }, 1000);
-      });
-    }
-    form1.addEventListener("submit", function (ev) { ev.preventDefault(); pedirCodigo(); });
-    reenviar.addEventListener("click", pedirCodigo);
-    form2.addEventListener("submit", function (ev) {
-      ev.preventDefault();
-      var tok = codigo.value.replace(/\D/g, "");
-      if (tok.length < 6) { msg.textContent = "Digite o código completo."; return; }
-      entrar.disabled = true; msg.textContent = "Conferindo…";
-      Online.sb.auth.verifyOtp({ email: email.value.trim().toLowerCase(), token: tok, type: "email" }).then(function (r) {
-        entrar.disabled = false;
-        if (r.error) { msg.textContent = /expired|invalid/i.test(r.error.message) ? "Código inválido ou vencido. Peça um novo." : "Não foi possível entrar: " + r.error.message; return; }
-        clearInterval(relogio);
+        senha.value = "";
         rotear();
       });
     });
