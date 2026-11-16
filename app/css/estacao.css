@@ -1,0 +1,423 @@
+/* =====================================================================
+ * estacao.css — Documento A4 diagramado (Projeto Estações)
+ * Fiel a analises/modelo-diagramacao.md (medidas em pt, como no PDF).
+ * Tudo aqui vale para a tela e para a impressão; a interface em volta
+ * do documento está em interface.css.
+ * ===================================================================== */
+
+/* ===== Fontes =====
+ * Transat Text: a empresa tem licença web; os arquivos entram em app/fontes/.
+ * Enquanto não existirem, o navegador cai na Figtree (Google Fonts) e depois em sans-serif. */
+@font-face {
+  font-family: "Transat Text";
+  src: local("Transat Text Standard"), local("TransatText-Standard"),
+       url("../fontes/TransatText-Standard.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Transat Text";
+  src: local("Transat Text Bold"), local("TransatText-Bold"),
+       url("../fontes/TransatText-Bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Transat Text";
+  src: local("Transat Text Standard Oblique"), local("TransatText-StandardOblique"),
+       url("../fontes/TransatText-StandardOblique.woff2") format("woff2");
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: "Transat Text";
+  src: local("Transat Text Bold Oblique"), local("TransatText-BoldOblique"),
+       url("../fontes/TransatText-BoldOblique.woff2") format("woff2");
+  font-weight: 700; font-style: italic; font-display: swap;
+}
+
+:root {
+  --azul: #23428D;
+  --preto: #231F20;
+  --cinza-70: #6C6D70;
+  --cinza-75: #636366;
+  --cinza-40: #A8A9AD;
+  --cinza-30: #BCBDC0;
+  --cinza-20: #D1D2D4;
+  --cinza-07: #EEEEEF;
+  --moldura: #BAB9BF;
+  --marca-claro: #3867C6;
+  --marca-escuro: #120B7F;
+  --capa-topo: #0C0F1E;
+  --capa-base: #1C2546;
+
+  --fonte: "Transat Text", "Figtree", sans-serif;
+  --mg-esq: 12mm; --mg-dir: 12mm; --mg-topo: 15mm; --mg-base: 20mm;
+}
+
+/* ===== Página ===== */
+@page { size: A4 portrait; margin: 0; }
+
+.documento, .documento * { box-sizing: border-box; }
+
+.pagina {
+  position: relative;
+  width: 210mm; height: 297mm;
+  overflow: hidden;
+  background: #fff;
+  font-family: var(--fonte);
+  font-size: 10pt; line-height: 12pt;
+  color: var(--preto);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  hyphens: auto; -webkit-hyphens: auto;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+.pagina .conteudo {
+  position: absolute;
+  top: var(--mg-topo); left: var(--mg-esq); right: var(--mg-dir);
+  height: calc(297mm - var(--mg-topo) - var(--mg-base));
+  z-index: 1;
+}
+/* evita que margens de topo empurrem o 1º elemento da página */
+.pagina .conteudo > :first-child { margin-top: 0 !important; }
+
+.documento b, .documento strong { font-weight: 700; }
+.documento sub, .documento sup { font-size: 68%; line-height: 0; position: relative; vertical-align: baseline; }
+.documento sub { top: .28em; }
+.documento sup { top: -.42em; }
+.documento i, .documento em { font-style: italic; }
+
+/* ===== Rodapé (todas as páginas, exceto a capa) ===== */
+.rodape {
+  position: absolute; right: 12mm; bottom: 8mm; height: 7mm;
+  display: flex; align-items: center; gap: 10.6pt;
+  font-size: 9pt; line-height: 1; color: var(--cinza-40);
+  text-transform: uppercase; white-space: nowrap; z-index: 2;
+}
+.rodape b { font-weight: 700; }
+.rodape .selo {
+  width: 19.8pt; height: 19.8pt; flex: none;
+  background: var(--cinza-40); color: #fff;
+  font-size: 10pt; font-weight: 700; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50% 2pt 50% 50%;
+}
+
+/* ===== Ornamento de fim de estação (arcos em "gota") ===== */
+.ornamento { position: absolute; pointer-events: none; z-index: 0; }
+.ornamento.fim { right: -1mm; bottom: -1mm; width: 87mm; height: 119mm; }
+.ornamento.grande { left: -0.5mm; top: 80mm; width: 176mm; height: 167mm; }
+.ornamento svg { width: 100%; height: 100%; display: block; }
+
+/* ===== Abertura da estação ===== */
+.abertura { position: relative; min-height: 50pt; padding-left: 65.2pt; margin: 0 0 26pt; }
+.abertura .icone-estacao { position: absolute; left: 0; top: 0.5pt; width: 50pt; height: 50pt; }
+.abertura .icone-estacao svg { width: 100%; height: 100%; display: block; }
+.abertura h1 {
+  margin: 0; padding-top: 1pt;
+  font-size: 20pt; line-height: 24pt; font-weight: 700; color: var(--azul);
+  hyphens: manual; -webkit-hyphens: manual;
+}
+.pilula-area {
+  display: inline-flex; align-items: center;
+  margin-top: 7.5pt; height: 18.5pt;
+  padding: 0 8.5pt; border: 1pt solid var(--preto); border-radius: 9.25pt;
+  font-size: 10pt; line-height: 1; font-weight: 700; color: var(--preto); white-space: nowrap;
+}
+.pilula-area .dia { font-weight: 400; white-space: pre; }
+
+/* ===== Rótulo de seção com fio ===== */
+.secao {
+  margin: 17pt 0 9.5pt; padding-bottom: 2.4pt;
+  border-bottom: 2pt solid var(--azul);
+  font-size: 10pt; line-height: 12pt; font-weight: 700; color: var(--azul);
+  text-transform: uppercase;
+}
+.secao .leve { font-weight: 400; }
+
+/* rótulos azuis sem fio: LOCAL:/CENÁRIO:, ORIENTAÇÕES AO EXAMINADOR:, SUGESTÕES DE FRASES: */
+.rotulo-azul {
+  margin: 17pt 0 9pt; font-weight: 700; color: var(--azul); text-transform: uppercase;
+  hyphens: manual; -webkit-hyphens: manual;
+}
+.rotulo-azul.local { margin-top: 18pt; }
+.rotulo-orient { margin: 22pt 0 11pt; }
+
+/* subtítulo da discussão (texto como digitado) */
+.subtitulo { margin: 22pt 0 11pt; font-weight: 700; color: var(--azul); hyphens: manual; -webkit-hyphens: manual; }
+
+/* rótulo solto preto (FILIPETA N:, FILIPETAS:, EXAMES LABORATORIAIS ...) */
+.rotulo-filipeta, .rotulo-solto {
+  margin: 16pt 0 6.4pt; font-weight: 700; color: var(--preto); text-transform: uppercase;
+  hyphens: manual; -webkit-hyphens: manual;
+}
+.rotulo-filipeta .compl { font-weight: 400; text-transform: none; }
+.rotulo-solto { margin-top: 14pt; }
+
+/* ===== Título de bloco com ícone (16 pt) ===== */
+.bloco-icone {
+  display: flex; align-items: center; gap: 10pt;
+  margin: 33pt 0 19.5pt;
+  font-size: 16pt; line-height: 19pt; font-weight: 700; color: var(--azul);
+  hyphens: manual; -webkit-hyphens: manual;
+}
+.bloco-icone .icone-bloco { width: 18.4pt; height: 18.4pt; flex: none; display: block; }
+.bloco-icone + .secao { margin-top: 0; }
+.pagina .conteudo > .bloco-icone:first-child { padding-top: 4.8pt; }
+.abertura + .rotulo-filipeta { margin-top: 43pt; } /* R+: abre direto em FILIPETAS */
+
+/* ===== Texto ===== */
+.documento p { margin: 0 0 5pt; text-align: justify; orphans: 2; widows: 2; }
+.documento p.continua { text-align-last: justify; margin-bottom: 0; }
+.rotulo-inline { font-weight: 700; }
+.fala-azul, .frase-sugerida { font-style: italic; color: var(--azul); }
+.sugestoes p { margin-bottom: 6pt; }
+.nota { font-weight: 700; }
+.sup-ref { font-size: 6.5pt; line-height: 0; vertical-align: super; color: var(--cinza-70); }
+
+/* ===== Lista "gota" ===== */
+ul.gota, ol.numerada { list-style: none; margin: 0 0 9pt; padding: 0; }
+ul.gota > li, ol.numerada > li {
+  position: relative; padding-left: 19.9pt; margin-bottom: 4pt; text-align: justify;
+}
+ul.gota > li::before {
+  content: ""; position: absolute; left: 0.3pt; top: 0.6pt;
+  width: 10.6pt; height: 10.6pt;
+  border: 1.05pt solid var(--azul); border-radius: 50% 50% 1.4pt 50%; /* canto quase reto: inferior direito (glifo Icon_HandsOn) */
+}
+ol.numerada { counter-reset: num var(--inicio, 0); }
+ol.numerada > li { counter-increment: num; }
+ol.numerada > li::before { content: counter(num) "."; position: absolute; left: 0; top: 0; }
+ul.marcadores { list-style: none; margin: 4pt 0 2pt; padding: 0; }
+ul.marcadores > li { position: relative; padding-left: 14pt; margin-bottom: 4pt; text-align: justify; }
+ul.marcadores > li::before {
+  content: ""; position: absolute; left: 1.5pt; top: 4pt;
+  width: 4pt; height: 4pt; border-radius: 50%; background: var(--preto);
+}
+/* lista simples "•" de materiais */
+ul.marcadores.materiais { margin: 3pt 0 6pt; }
+ul.marcadores.materiais > li { padding-left: 12pt; margin-bottom: 3pt; }
+
+/* ===== Caixa de filipeta ===== */
+.filipeta {
+  border: 1pt solid var(--azul); border-left: 3pt solid var(--azul);
+  margin-left: -1.5pt; /* barra de 3 pt centrada na margem (x 32,5–35,5 pt) */
+  padding: 9pt 11pt 8.5pt 9.9pt; background: #fff;
+  break-inside: avoid; page-break-inside: avoid;
+}
+.filipeta + .filipeta { margin-top: 3.8pt; }
+.filipeta + p, .filipeta + ul, .filipeta + ol, .filipeta + .rotulo-filipeta { margin-top: 13pt; }
+.filipeta .rotulo-caixa {
+  margin: 0 0 1.5pt; font-weight: 700; color: var(--azul); text-transform: uppercase;
+  hyphens: manual; -webkit-hyphens: manual;
+}
+.filipeta .rotulo-caixa.centro { text-align: center; margin-bottom: 6pt; }
+.filipeta p { margin: 0 0 3pt; text-align: justify; }
+.filipeta p:last-child { margin-bottom: 0; }
+.filipeta .em-linha .rotulo-caixa-inline { font-weight: 700; color: var(--azul); text-transform: uppercase; }
+.filipeta .sinais { margin-bottom: 3pt; }
+.filipeta .item-letra { font-weight: 700; }
+.filipeta ul.gota { margin: 3pt 0 3pt; }
+.filipeta .figura-caixa { margin: 6pt 0 2pt; text-align: center; }
+.filipeta .figura-caixa:last-child { margin-bottom: 0; }
+.filipeta .figura-caixa img {
+  display: block; margin: 0 auto; width: auto; height: auto; max-width: 74%; max-height: 62mm; border-radius: 8.5pt;
+}
+.filipeta .figura-caixa .img-pendente { margin: 0 auto; max-width: 74%; }
+.fonte-img { font-size: 8pt; line-height: 9.6pt; text-align: center; margin-top: 4pt; }
+.fonte-img b { font-weight: 700; }
+.banca-unifesp-r1 .fonte-img, .banca-unifesp-rmais .fonte-img { color: var(--cinza-75); }
+.banca-unifesp-r1 .fonte-img b, .banca-unifesp-rmais .fonte-img b { font-weight: 400; } /* Unifesp: "Fonte:" sem negrito */
+
+/* ===== Caixa de fala do ator/atriz ===== */
+.fala-grupo { break-inside: avoid; page-break-inside: avoid; }
+.fala {
+  position: relative;
+  margin: 12pt 0 16pt 11.4pt;
+  padding: 14pt 14pt 14pt 17pt;
+  background: var(--cinza-07);
+  border-radius: 0 8.5pt 8.5pt 0;
+  break-inside: avoid; page-break-inside: avoid;
+}
+.fala::before { /* fio azul da borda esquerda */
+  content: ""; position: absolute; left: -1pt; top: 0; bottom: 0; width: 2pt; background: var(--azul);
+}
+.fala .rabicho {
+  position: absolute; left: -13pt; top: 12pt; width: 14pt; height: 16pt; overflow: visible;
+}
+.fala p { margin: 0 0 5.5pt; text-align: left; }
+.fala p:last-child { margin-bottom: 0; }
+ul.gota + .fala-grupo .fala, ul.gota + .fala { margin-top: 12pt; }
+
+/* ===== Tabela de checklist ===== */
+.checklist-moldura {
+  border: .5pt solid var(--preto); border-radius: 2.8pt; overflow: hidden;
+  margin: 0 0 6pt;
+}
+table.checklist {
+  width: calc(100% + .6pt); margin: 0 -.6pt -.6pt 0;
+  border-collapse: separate; border-spacing: 0; table-layout: fixed;
+  font-size: 9pt; line-height: 11pt;
+}
+.checklist th, .checklist td {
+  border-right: .5pt solid var(--preto); border-bottom: .5pt solid var(--preto);
+  padding: 4.8pt 5.7pt; vertical-align: middle; text-align: left;
+  hyphens: auto; -webkit-hyphens: auto;
+}
+.checklist thead th {
+  height: 24pt; font-weight: 700; text-transform: uppercase; text-align: center;
+  border-bottom-width: 1pt; padding-top: 3pt; padding-bottom: 3pt;
+}
+.checklist td.tarefa { font-weight: 700; text-align: center; text-transform: uppercase; hyphens: manual; -webkit-hyphens: manual; padding-left: 3pt; padding-right: 3pt; }
+.checklist td.marca, .checklist td.valor { text-align: center; padding-left: 2pt; padding-right: 2pt; }
+.checklist td.na { background: var(--cinza-20); }
+.checklist td.na-texto { font-size: 8pt; line-height: 9pt; color: var(--cinza-70); }
+.checklist td.item { text-align: left; }
+.checklist td.item .pergunta { font-weight: 700; }
+.checklist .nota-item { display: block; margin-top: 6pt; color: var(--cinza-70); }
+.checklist .nota-item b { font-weight: 700; }
+.checklist .negativo-marca { font-weight: 700; }
+.checklist ul.marcadores { margin: 3pt 0 0; }
+.checklist ul.marcadores > li { margin-bottom: 2pt; padding-left: 12pt; }
+.checklist ul.marcadores > li::before { top: 3.6pt; width: 3.6pt; height: 3.6pt; }
+/* Einstein e Unifesp: linhas de 1 linha com ~17,8 pt (HSL e USP-RP: ~20,7 pt) */
+.banca-einstein .checklist td, .banca-unifesp-r1 .checklist td, .banca-unifesp-rmais .checklist td { padding-top: 3.4pt; padding-bottom: 3.4pt; }
+.checklist tr.grupo td { background: var(--cinza-30); font-weight: 700; text-align: center; }
+.checklist tr.total td { height: 20.7pt; padding-top: 3pt; padding-bottom: 3pt; }
+.checklist tr.total td.rotulo-total { text-align: right; font-weight: 700; text-transform: uppercase; padding-right: 7pt; }
+
+/* ===== Tabela de exames (dentro da filipeta) ===== */
+.tab-exames-moldura {
+  width: 49.5%; margin: 4pt auto 2pt;
+  border: .5pt solid var(--preto); border-radius: 2.8pt; overflow: hidden;
+}
+.tab-exames-moldura.larga { width: 80%; }
+table.tab-exames {
+  width: calc(100% + .8pt); margin: 0 -.8pt -.6pt 0;
+  border-collapse: separate; border-spacing: 0;
+  font-size: 9pt; line-height: 10.5pt; text-align: center;
+}
+.tab-exames th, .tab-exames td {
+  padding: 3.3pt 4pt; border-bottom: .5pt solid var(--preto); border-right: .75pt solid var(--preto);
+  hyphens: manual; -webkit-hyphens: manual;
+}
+.tab-exames thead th { font-weight: 700; text-transform: uppercase; border-bottom-width: 1pt; padding: 7pt 5pt; }
+
+/* ===== Tabela da discussão ===== */
+.tabela-grupo { margin: 16pt 0 0; break-inside: avoid; page-break-inside: avoid; }
+.tabela-grupo:last-child { margin-bottom: 20pt; }
+table.tab-discussao {
+  width: calc(100% + 2pt); margin: 0 -1pt;
+  border-collapse: separate; border-spacing: 1pt;
+  font-size: 10pt; line-height: 12pt; text-align: center;
+}
+.tab-discussao th {
+  background: var(--azul); color: #fff; font-weight: 700; text-transform: uppercase;
+  height: 22pt; padding: 4pt 6pt; vertical-align: middle;
+  hyphens: manual; -webkit-hyphens: manual;
+}
+.tab-discussao td { background: var(--cinza-07); padding: 5.3pt 6pt; height: 22.7pt; vertical-align: middle; }
+.tab-discussao td:first-child { font-weight: 700; }
+.legenda { font-size: 8pt; line-height: 9.6pt; text-align: justify; margin: 10pt 0 20pt; }
+.legenda b { font-weight: 700; }
+
+/* ===== Figuras (discussão) ===== */
+.figura { margin: 14pt 0 16pt; break-inside: avoid; page-break-inside: avoid; }
+.figura .titulo-figura { font-weight: 700; color: var(--azul); text-align: center; margin: 0 0 8pt; }
+.figura .moldura {
+  margin: 0 auto; border: .5pt solid var(--moldura); border-radius: 8.5pt; overflow: hidden;
+}
+.figura .moldura img { display: block; width: 100%; height: auto; }
+.figura .moldura .img-pendente { border: 0; border-radius: 0; }
+.figura .legenda { margin: 6pt 0 0; }
+.figura .fonte-pilula-linha { text-align: right; margin-top: 4pt; }
+.figura .fonte-pilula {
+  display: inline-block; border: .5pt solid var(--preto); border-radius: 6pt;
+  padding: 1.5pt 6pt; font-size: 6pt; line-height: 7.5pt;
+}
+.figura-lateral {
+  display: grid; grid-template-columns: 43.6% 1fr; column-gap: 7mm; align-items: start;
+  margin: 12pt 0 16pt; break-inside: avoid; page-break-inside: avoid;
+}
+.figura-lateral img { display: block; width: 100%; height: auto; }
+.figura-lateral .legenda { margin: 0; }
+.figura-lateral .fonte-img { text-align: left; margin-top: 3pt; }
+
+/* imagem cujo arquivo não carregou */
+.img-pendente {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  min-height: 42mm; width: 100%; padding: 6pt;
+  border: 1pt dashed var(--cinza-40); border-radius: 8.5pt;
+  color: var(--cinza-70); font-size: 8.5pt; line-height: 11pt; background: #fafafb;
+  word-break: break-all;
+}
+.filipeta .figura-caixa .img-pendente { width: 74%; }
+
+/* ===== Referências ===== */
+.referencias { color: var(--cinza-70); }
+.rotulo-ref {
+  margin: 26pt 0 7pt; font-weight: 700; text-transform: uppercase; color: var(--cinza-70);
+  hyphens: manual; -webkit-hyphens: manual;
+}
+.rotulo-ref .leve { font-weight: 400; text-transform: none; }
+ol.lista-ref { list-style: none; margin: 0; padding: 0; counter-reset: ref var(--inicio, 0); }
+ol.lista-ref > li {
+  counter-increment: ref; position: relative; padding-left: 18pt; margin-bottom: 6pt;
+  text-align: justify; color: var(--cinza-70);
+}
+ol.lista-ref > li::before { content: counter(ref) "."; position: absolute; left: 0; top: 0; }
+
+/* ===== Soft Skills ===== */
+.soft-exemplo { margin-top: 10pt; }
+
+/* ===== Capa provisória ===== */
+.pagina.capa {
+  background: linear-gradient(180deg, var(--capa-topo) 0%, var(--capa-base) 100%);
+  color: #fff;
+}
+.capa .arte { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+.capa .arcos-capa { position: absolute; left: 0; top: 0; width: 100%; height: 120mm; z-index: 0; }
+.capa .logo-capa {
+  position: absolute; top: 19mm; left: 0; right: 0; text-align: center; z-index: 1;
+  font-size: 7.5pt; letter-spacing: 2.4pt; font-weight: 700; line-height: 1.25;
+}
+.capa .logo-capa .hands {
+  display: inline-block; margin-top: 2pt; padding: 2pt 7pt; background: #05070f;
+  font-size: 15pt; letter-spacing: 3pt;
+}
+.capa .titulo-capa {
+  position: absolute; top: 64mm; left: 0; right: 0; text-align: center; z-index: 1;
+  font-weight: 700; font-size: 54pt; line-height: 52pt; letter-spacing: 0.5pt; color: #F3F3F3;
+  text-transform: uppercase; font-family: var(--fonte);
+}
+.capa .titulo-capa .o-check { position: relative; display: inline-block; }
+.capa .titulo-capa .o-check .check { position: absolute; width: .62em; height: .47em; right: -.1em; top: .2em; }
+.capa .pilula-banca {
+  position: absolute; top: 113mm; left: 64mm; width: 83mm; height: 11mm; z-index: 1;
+  background: linear-gradient(90deg, #193161 0%, #193161 65%, rgba(25,49,97,0) 100%);
+  display: flex; align-items: center; justify-content: center; gap: .35em;
+  font-size: 16pt; line-height: 1; white-space: nowrap;
+}
+.capa .pilula-banca b { font-weight: 700; text-transform: uppercase; }
+.capa .titulo-estacao-capa {
+  position: absolute; top: 132mm; left: 25mm; right: 25mm; z-index: 1; text-align: center;
+  font-size: 15pt; line-height: 19pt; font-weight: 400; color: #DCE3F2;
+}
+.capa .ilustracao-reservada {
+  position: absolute; left: 22mm; right: 22mm; top: 150mm; bottom: 24mm; z-index: 1;
+  border: 1pt dashed rgba(255,255,255,.28); border-radius: 8.5pt;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  color: rgba(255,255,255,.5); font-size: 9pt; line-height: 13pt; padding: 10mm;
+}
+.capa .marca-capa {
+  position: absolute; bottom: 10mm; left: 0; right: 0; text-align: center; z-index: 1;
+  font-size: 9pt; letter-spacing: 1pt; color: #fff; opacity: .9;
+}
+.capa.com-arte .arcos-capa, .capa.com-arte .logo-capa, .capa.com-arte .titulo-capa,
+.capa.com-arte .ilustracao-reservada, .capa.com-arte .marca-capa { display: none; }
+
+/* ===== Impressão ===== */
+@media print {
+  html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  .pagina { margin: 0 !important; box-shadow: none !important; break-after: page; page-break-after: always; }
+  .pagina:last-child { break-after: auto; page-break-after: auto; }
+  .so-tela { display: none !important; }
+}

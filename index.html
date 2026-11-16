@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://uyjrqiurjywfeaifwpct.supabase.co; connect-src https://uyjrqiurjywfeaifwpct.supabase.co wss://uyjrqiurjywfeaifwpct.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="theme-color" content="#23428D">
+  <title>Estações · Aplicação</title>
+  <!-- Fonte de reserva (Transat Text entra por app/fontes quando houver licença web) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,600;0,700;1,400;1,700&display=swap">
+  <!-- Blocos da estação (os mesmos do impresso) + telas online -->
+  <link rel="stylesheet" href="app/css/estacao.css">
+  <link rel="stylesheet" href="css/online.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <div id="on-faixa-demo" class="on-faixa-demo" hidden></div>
+  <div id="on-app" class="on-app">
+    <noscript><p style="padding:16px">Ative o JavaScript para usar o sistema.</p></noscript>
+  </div>
+
+  <!-- Ordem: configuração → diagramador (só blocos, sem paginação) → núcleo → telas -->
+  <script src="js/config.js"></script>
+  <script src="app/js/render.js"></script>
+  <script src="js/nucleo.js"></script>
+  <script src="js/ator.js"></script>
+  <script src="js/aplicador.js"></script>
+  <script src="js/aluno.js"></script>
+  <script src="js/admin.js"></script>
+  <!-- demo.js NÃO é listado aqui: o núcleo só o carrega com ?demo=1, no computador local,
+       e o montar-casca.sh o exclui da publicação. -->
+</body>
+</html>
