@@ -429,6 +429,19 @@
   /* ------------------------------------------------------------------
    * Entrada (login por código ou link) e roteamento por perfil
    * ------------------------------------------------------------------ */
+  /* Entrada em tela cheia (visual: css/tema-editorial.css, seção ".on-hero").
+     A nota "Foto: …" marca onde entra a fotografia; ao definir --ed-hero-foto no CSS, apague a linha da nota. */
+  function heroEntrada() {
+    var foto = el("div", "on-hero-foto"); foto.setAttribute("aria-hidden", "true");
+    return el("section", "on-hero", [
+      foto,
+      el("p", "on-hero-nota", "Foto: sala de estação em uso (examinador, ator e candidato), luz lateral, espaço livre à esquerda"),
+      el("p", "on-hero-rotulo", "Hands-on · 2ª fase da residência médica"),
+      el("p", "on-hero-titulo", "Prova prática, ensaiada."),
+      el("p", "on-hero-texto", "Estações aplicadas e avaliadas no perfil de cada banca.")
+    ]);
+  }
+
   function telaLogin(erroLink) {
     erroLink = typeof erroLink === "string" ? erroLink : null;
     estado.eu = null; pilha = [];
@@ -450,6 +463,7 @@
     var msg = el("p", "on-msg"); msg.setAttribute("aria-live", "polite");
     cartao.appendChild(form); cartao.appendChild(msg);
     cartao.appendChild(el("p", "on-sutil on-peq", "Esqueceu a senha? Fale com a coordenação. Em aparelho compartilhado, toque em \"Sair\" ao terminar."));
+    area.appendChild(heroEntrada());
     area.appendChild(cartao);
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -613,6 +627,7 @@
       });
       cartao.appendChild(l);
     });
+    area.appendChild(heroEntrada());
     area.appendChild(cartao);
   }
 

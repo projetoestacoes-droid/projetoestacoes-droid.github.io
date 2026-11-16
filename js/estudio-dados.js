@@ -146,6 +146,7 @@
     conflito_versao: "A estação foi alterada por outra pessoa (ou em outra aba) depois que você a abriu.",
     nao_encontrado: "Registro não encontrado (pode ter sido removido); recarregue a lista.",
     estacao_nao_aprovada: "Só estações com status “Aprovada” podem ser publicadas. Edite, mude o status para Aprovada e salve.",
+    so_publica_estacao_aprovada: "Só estações com status “Aprovada” podem ser publicadas. Edite, mude o status para Aprovada e salve.",
     conteudo_invalido: "O conteúdo não é uma estação válida (objeto com banca e título).",
     banca_invalida: "Banca inválida.",
     titulo_obrigatorio: "A estação não tem título.",

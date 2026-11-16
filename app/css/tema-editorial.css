@@ -1,0 +1,214 @@
+/* =====================================================================
+ * tema-editorial.css — Camada visual "editorial" da INTERFACE do
+ * visualizador local e do estúdio (barra, lateral, palco, painéis, editor).
+ *
+ * Carregado DEPOIS de interface.css, editor.css e estudio.css: só troca a
+ * aparência. Para voltar ao visual anterior, basta remover o <link> deste
+ * arquivo do index.html / estudio.html.
+ *
+ * Regras de segurança deste arquivo:
+ *   1. Tudo dentro de @media screen: a impressão não muda.
+ *   2. Nada aqui alcança o interior de .pagina (o documento A4 é de
+ *      estacao.css e não pode mudar medidas nem quebras de página).
+ *   3. Nenhuma altura, largura ou grade da interface é alterada: só cor,
+ *      tipografia, borda, raio, sombra e transição.
+ * ===================================================================== */
+@media screen {
+
+  /* ---------- Tokens ---------- */
+  :root {
+    --ed-tinta: #0B0E1A;        /* quase preto azulado (da capa: #0C0F1E) */
+    --ed-noite: #121729;
+    --ed-noite-2: #1C2546;      /* base da capa */
+    --ed-azul: #23428D;         /* azul da marca */
+    --ed-azul-vivo: #3867C6;
+    --ed-azul-luz: #A9BEF2;     /* azul legível sobre fundo escuro */
+    --ed-papel: #F4F2EC;
+    --ed-papel-2: #EAE7DE;
+    --ed-linha: #D8D4C8;
+    --ed-linha-escura: rgba(255, 255, 255, .16);
+    --ed-texto: #14171F;
+    --ed-suave: #5C616E;
+    --ed-raio: 2px;
+    --ed-rapido: .18s cubic-bezier(.2, .7, .2, 1);
+
+    /* as variáveis antigas passam a apontar para a nova paleta */
+    --ui-fundo: var(--ed-tinta);
+    --ui-lateral: var(--ed-papel);
+    --ui-borda: var(--ed-linha);
+    --ui-texto: var(--ed-texto);
+    --ui-suave: var(--ed-suave);
+    --ui-azul-claro: #E3E8F5;
+  }
+
+  /* rótulo pequeno em caixa alta: usado em toda a interface */
+  .abas [role="tab"], .lista h2, .pedidos h2, .lateral .filtros label, .form-pedido legend,
+  .ed-rot, .ed-nivel-rot, .painel-revisao li.achado .secao-r, .es-tabela th {
+    text-transform: uppercase; letter-spacing: .12em; font-weight: 700;
+  }
+
+  /* ---------- Barra superior: escura, discreta ---------- */
+  .barra {
+    background: var(--ed-tinta); border-bottom: 1px solid var(--ed-linha-escura); color: #fff;
+    padding: 8px 18px;
+  }
+  .barra .marca-app { color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
+  .barra .marca-app span { color: var(--ed-azul-luz); font-weight: 600; letter-spacing: .14em; }
+  .barra .atual { color: rgba(255, 255, 255, .62); }
+  .barra .atual b { color: #fff; font-weight: 700; }
+  .barra .chk { color: rgba(255, 255, 255, .82); }
+  .barra .btn, .barra select {
+    background: transparent; color: #fff; border-color: rgba(255, 255, 255, .28);
+  }
+  .barra select option { color: var(--ed-texto); background: #fff; }
+  .barra .btn:hover { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .6); }
+  .barra .btn[aria-pressed="true"] { background: var(--ed-azul-vivo); border-color: var(--ed-azul-vivo); color: #fff; }
+  .barra .btn.primario { background: #fff; border-color: #fff; color: var(--ed-tinta); }
+  .barra .btn.primario:hover { background: var(--ed-azul-luz); border-color: var(--ed-azul-luz); }
+  .barra .btn[disabled], .barra .btn[disabled]:hover { background: transparent; border-color: rgba(255, 255, 255, .16); color: rgba(255, 255, 255, .4); }
+  .barra .btn:focus-visible, .barra select:focus-visible, .barra input:focus-visible { outline-color: var(--ed-azul-luz); }
+  .barra #btn-publicar:not([disabled]) { border-color: #6FCF97; color: #A8E6C1; }
+  .barra #btn-publicar:not([disabled]):hover { background: rgba(111, 207, 151, .14); }
+  .barra .es-quem { color: rgba(255, 255, 255, .62); }
+  .barra .es-quem .es-nome { color: #fff; }
+  .barra .btn-link, .barra a { color: var(--ed-azul-luz); }
+
+  /* ---------- Botões e campos (fora da barra) ---------- */
+  .btn {
+    border-radius: var(--ed-raio); border-color: var(--ed-texto); background: transparent; font-weight: 600;
+    transition: background var(--ed-rapido), color var(--ed-rapido), border-color var(--ed-rapido);
+  }
+  .btn:hover { background: var(--ed-texto); color: #fff; }
+  .btn.primario { background: var(--ed-texto); border-color: var(--ed-texto); color: #fff; }
+  .btn.primario:hover { background: var(--ed-azul); border-color: var(--ed-azul); }
+  .btn[aria-pressed="true"] { background: var(--ed-azul); border-color: var(--ed-azul); color: #fff; }
+  .btn[disabled], .btn[disabled]:hover { background: transparent; color: var(--ed-suave); border-color: var(--ed-linha); }
+  .btn.perigo { color: var(--ui-erro); border-color: var(--ui-erro); }
+  .btn.perigo:hover { background: var(--ui-erro); color: #fff; }
+  .btn.mini { border-radius: var(--ed-raio); }
+  .es-linha-botoes a.btn:hover { color: #fff; }
+  .btn-link { color: var(--ed-azul); text-underline-offset: 3px; }
+
+  .barra select, .lateral .filtros select, .lateral .filtros input[type="search"],
+  .campo input[type="text"], .campo select, .campo textarea,
+  .ed-campo-painel input, .ed-campo-painel select, .ed-campo-painel textarea, .ed-campo,
+  .linha-copiar input, .es-form-login input, .es-form-dialogo input, .es-form-dialogo select {
+    border-radius: var(--ed-raio);
+  }
+  .lateral .filtros select, .lateral .filtros input[type="search"],
+  .campo input[type="text"], .campo select, .campo textarea,
+  .ed-campo-painel input, .ed-campo-painel select, .ed-campo-painel textarea {
+    border-color: var(--ed-linha); transition: border-color var(--ed-rapido);
+  }
+  .lateral .filtros select:hover, .lateral .filtros input[type="search"]:hover,
+  .campo input[type="text"]:hover, .campo select:hover, .campo textarea:hover { border-color: var(--ed-texto); }
+
+  /* ---------- Barra lateral: papel, lista editorial ---------- */
+  .lateral { border-right: 0; }
+  .abas { background: var(--ed-papel); border-bottom: 1px solid var(--ed-texto); }
+  .abas [role="tab"] { font-size: 11px; padding: 15px 8px 12px; color: var(--ed-suave); transition: color var(--ed-rapido); }
+  .abas [role="tab"][aria-selected="true"] { color: var(--ed-texto); border-bottom-color: var(--ed-texto); }
+  .lateral .filtros { padding: 14px 16px; border-bottom: 1px solid var(--ed-linha); }
+  .lateral .filtros label { font-size: 10px; }
+  .lateral .filtros label select, .lateral .filtros label input { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
+  .lateral .filtros .es-chk { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+  .lista { padding: 4px 0 24px; }
+  .lista h2 {
+    font-size: 10px; color: var(--ed-suave); margin: 22px 16px 0; padding-bottom: 8px;
+    border-bottom: 1px solid var(--ed-texto);
+  }
+  .lista .vazio { margin: 12px 16px; }
+  .item-estacao {
+    border: 0; border-bottom: 1px solid var(--ed-linha); border-left: 3px solid transparent; border-radius: 0;
+    padding: 13px 16px 13px 13px; margin: 0;
+    transition: background var(--ed-rapido), border-color var(--ed-rapido), padding var(--ed-rapido);
+  }
+  .item-estacao:hover { background: #fff; border-color: var(--ed-linha); border-left-color: var(--ed-linha); padding-left: 17px; padding-right: 12px; }
+  .item-estacao.ativo { background: #fff; border-color: var(--ed-linha); border-left-color: var(--ed-azul); box-shadow: none; }
+  .item-estacao .tit { font-size: 15px; font-weight: 700; line-height: 1.22; letter-spacing: -.01em; }
+  .item-estacao .meta { margin-top: 7px; }
+
+  /* selos: etiquetas retas em vez de pílulas (as cores de status ficam) */
+  .selo-ui { border-radius: var(--ed-raio); font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 5px; }
+
+  /* ---------- Palco do documento: fundo escuro, página iluminada ---------- */
+  .area-doc { background: radial-gradient(120% 70% at 50% 0%, var(--ed-noite-2) 0%, var(--ed-noite) 45%, var(--ed-tinta) 100%); }
+  #documento .pagina { box-shadow: 0 1px 0 rgba(255, 255, 255, .06), 0 28px 70px rgba(0, 0, 0, .55); }
+  .area-doc .aviso-central {
+    max-width: 640px; margin: 18vh auto 0; padding: 0 32px; text-align: left; color: #fff;
+    font-size: clamp(24px, 2.8vw, 40px); line-height: 1.08; font-weight: 800; letter-spacing: -.03em;
+    animation: ed-surgir .6s cubic-bezier(.2, .7, .2, 1) both;
+  }
+  .area-doc .aviso-central::before {
+    content: "Projeto Estações"; display: block; margin-bottom: 18px;
+    font-size: 11px; line-height: 1; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--ed-azul-luz);
+  }
+  .carregando { background: var(--ed-tinta); color: #fff; border-color: var(--ed-linha-escura); border-radius: var(--ed-raio); }
+  @keyframes ed-surgir { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- Painel de revisão ---------- */
+  .painel-revisao { background: var(--ed-papel); border-left: 0; padding: 22px 20px 30px; }
+  .painel-revisao h2 { font-size: 26px; line-height: 1.05; font-weight: 800; letter-spacing: -.03em; color: var(--ed-texto); margin-bottom: 8px; }
+  .painel-revisao h3 { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; margin: 24px 0 10px; padding-top: 12px; border-top: 1px solid var(--ed-texto); }
+  .painel-revisao li.achado { background: #fff; border-color: var(--ed-linha); border-radius: var(--ed-raio); }
+  .painel-revisao li.achado .secao-r { font-size: 10px; }
+  .cont, .painel-revisao .marcador { border-radius: var(--ed-raio); }
+  .painel-revisao .modulo-ausente { border-radius: var(--ed-raio); }
+
+  /* ---------- Formulário "Nova estação" e pedidos ---------- */
+  .painel-nova { padding: 16px 16px 30px; }
+  .conexao, .cartao-ok, #lista-pedidos li.pedido, .es-pedidos li.pedido, .lista-arquivos li, .aviso-api, .es-aviso-ia { border-radius: var(--ed-raio); }
+  .form-pedido fieldset { border: 0; border-top: 1px solid var(--ed-texto); border-radius: 0; background: transparent; padding: 12px 0 4px; }
+  .form-pedido legend { font-size: 10px; color: var(--ed-texto); padding: 0 8px 0 0; }
+  .pedidos h2 { font-size: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--ed-texto); }
+
+  /* ---------- Modo edição ---------- */
+  .painel-edicao { border-bottom: 1px solid var(--ed-texto); padding: 16px; }
+  .painel-edicao h2 { font-size: 22px; font-weight: 800; letter-spacing: -.03em; color: var(--ed-texto); }
+  .ed-rot, .ed-nivel-rot { font-size: 10px; }
+  .ed-soma, .ed-tipos { border-radius: var(--ed-raio); }
+  .ed-popover { border-radius: 4px; border-color: var(--ed-texto); box-shadow: 0 18px 50px rgba(5, 8, 20, .35); }
+  .ed-pop-rotulo { color: var(--ed-texto); }
+  dialog.ed-dialogo { border-radius: 4px; border-color: var(--ed-texto); padding: 22px 24px; }
+  dialog.ed-dialogo::backdrop { background: rgba(8, 10, 22, .6); }
+  dialog.ed-dialogo h3 { font-size: 22px; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; color: var(--ed-texto); margin-bottom: 10px; }
+
+  /* ---------- Estúdio: portão de entrada em tela cheia ---------- */
+  .es-portao {
+    background: radial-gradient(90% 90% at 12% 100%, var(--ed-noite-2) 0%, var(--ed-noite) 45%, var(--ed-tinta) 100%);
+    justify-content: flex-start; align-items: flex-end; padding: clamp(20px, 6vw, 88px);
+  }
+  .es-cartao {
+    background: transparent; border: 0; box-shadow: none; border-radius: 0; padding: 0; color: #fff;
+    width: min(440px, 100%); gap: 14px; animation: ed-surgir .7s cubic-bezier(.2, .7, .2, 1) both;
+  }
+  .es-cartao::before {
+    content: "Projeto Estações · área do administrador";
+    font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--ed-azul-luz);
+  }
+  .es-cartao h1 { font-size: clamp(40px, 7vw, 84px); line-height: .92; font-weight: 800; letter-spacing: -.045em; color: #fff; margin-bottom: 6px; }
+  .es-cartao .es-sutil { color: rgba(255, 255, 255, .72); font-size: 14px; }
+  .es-cartao .es-aviso-erro { color: #FFB4AB; font-size: 14px; }
+  .es-form-login label { color: rgba(255, 255, 255, .72); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
+  .es-form-login input {
+    background: transparent; color: #fff; border: 0; border-bottom: 1px solid rgba(255, 255, 255, .4); border-radius: 0;
+    padding: 9px 0; font-size: 17px; letter-spacing: 0; text-transform: none;
+  }
+  .es-form-login input:focus { outline: 0; border-bottom-color: #fff; box-shadow: 0 1px 0 #fff; }
+  .es-cartao .btn { color: #fff; border-color: rgba(255, 255, 255, .4); padding: 11px 18px; }
+  .es-cartao .btn:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+  .es-cartao .btn.primario { background: #fff; border-color: #fff; color: var(--ed-tinta); letter-spacing: .12em; text-transform: uppercase; font-size: 12px; font-weight: 800; }
+  .es-cartao .btn.primario:hover { background: var(--ed-azul-luz); border-color: var(--ed-azul-luz); }
+  .es-cartao .btn:focus-visible, .es-form-login input:focus-visible { outline-color: var(--ed-azul-luz); }
+
+  /* ---------- Estúdio: diálogos, tabelas, avisos ---------- */
+  .es-rolagem, .es-log, .es-toast { border-radius: var(--ed-raio); }
+  .es-tabela th { font-size: 10px; background: var(--ed-papel); }
+  .es-toast { background: var(--ed-tinta); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .area-doc .aviso-central, .es-cartao { animation: none; }
+    .btn, .item-estacao, .abas [role="tab"] { transition: none; }
+  }
+}

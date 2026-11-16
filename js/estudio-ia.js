@@ -23,10 +23,15 @@
   var AREAS = ["Clínica Médica", "Cirurgia Geral", "Ginecologia e Obstetrícia", "Pediatria", "Preventiva"];
   var AREA_PROC = "Procedimento";
   var COM_SOFT = { "einstein": true, "sirio-libanes": true };
-  var ACEITOS = /\.(pdf|txt|png|jpe?g|webp|docx)$/i;
-  var MAX_REF = 32 * 1024 * 1024;
+  // DOCX não é lido pela IA (a função só anexa PDF, imagem e texto): não é aceito aqui.
+  var ACEITOS = /\.(pdf|txt|png|jpe?g|webp)$/i;
+  // Limite por pedido, somando técnicas + soft skills (o mesmo da função gerar-estacao:
+  // 23 MB de arquivos ≈ 31 MB em base64, dentro dos 32 MB por requisição).
+  var MAX_TOTAL = 23 * 1024 * 1024;
+  var MAX_REF = MAX_TOTAL;
   var STATUS = {
-    aguardando: ["Aguardando envio", "st-aguardando"], enviado: ["Enviado", "st-em-criacao"], processando: ["Processando", "st-em-criacao"],
+    aguardando: ["Aguardando envio", "st-aguardando"], enviando: ["Enviando à IA", "st-em-criacao"],
+    enviado: ["Enviado", "st-em-criacao"], processando: ["Processando", "st-em-criacao"],
     concluido: ["Concluído", "st-gerada"], erro: ["Erro", "st-erro"], cancelado: ["Cancelado", ""]
   };
   var AVISO_SEM_CHAVE = "A geração por IA ainda não está ativa: falta colocar a chave da API no Supabase (ver guia).";
@@ -61,27 +66,36 @@
       ul.appendChild(li);
     });
   }
+  function somaRefs(comSoft) {
+    return arquivos.tec.concat(comSoft ? arquivos.soft : []).reduce(function (s, a) { return s + (a.size || 0); }, 0);
+  }
+  function msgLimite(total) {
+    return "As referências somam " + tamanho(total) + "; o limite por pedido é 23 MB (envie só os capítulos usados ou PDFs comprimidos).";
+  }
   function adicionar(tipo, lista) {
-    var recusados = [];
+    var recusados = [], estourou = 0;
     Array.prototype.slice.call(lista || []).forEach(function (a) {
-      if (!ACEITOS.test(a.name)) { recusados.push(a.name + " (use PDF, DOCX, TXT, PNG, JPG ou WEBP)"); return; }
-      if (a.size > MAX_REF) { recusados.push(a.name + " (maior que 32 MB)"); return; }
+      if (/\.docx$/i.test(a.name)) { recusados.push(a.name + " (DOCX não é lido pela IA: salve como PDF)"); return; }
+      if (!ACEITOS.test(a.name)) { recusados.push(a.name + " (use PDF, TXT, PNG, JPG ou WEBP)"); return; }
+      if (a.size > MAX_REF) { recusados.push(a.name + " (" + tamanho(a.size) + "; maior que 23 MB)"); return; }
       if (arquivos[tipo].some(function (x) { return x.name === a.name && x.size === a.size; })) return;
+      var total = somaRefs(true) + a.size;
+      if (total > MAX_TOTAL) { recusados.push(a.name + " (passaria do limite somado)"); estourou = total; return; }
       arquivos[tipo].push(a);
     });
     listarArquivos(tipo);
-    if (recusados.length) mensagem("Arquivos recusados: " + recusados.join("; ") + ".", "erro");
+    if (recusados.length) mensagem("Arquivos recusados: " + recusados.join("; ") + "." + (estourou ? " " + msgLimite(estourou) : ""), "erro");
   }
   function upload(tipo, rotuloId) {
     var w = el("div", "campo upload");
     var rot = el("span", "rotulo-campo", tipo === "tec" ? "Referências técnicas" : "Referências de soft skills"); rot.id = rotuloId;
-    var inp = el("input", "vh"); inp.type = "file"; inp.multiple = true; inp.id = "ia-ref-" + tipo; inp.accept = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp";
+    var inp = el("input", "vh"); inp.type = "file"; inp.multiple = true; inp.id = "ia-ref-" + tipo; inp.accept = ".pdf,.txt,.png,.jpg,.jpeg,.webp";
     inp.setAttribute("aria-labelledby", rotuloId);
     inp.addEventListener("change", function () { adicionar(tipo, this.files); this.value = ""; });
     var lbl = el("label", "btn btn-arquivo", "Adicionar arquivos…"); lbl.htmlFor = inp.id;
     f["l" + tipo] = el("ul", "lista-arquivos");
     ui.anexar(w, [rot, inp, lbl, f["l" + tipo]]);
-    if (tipo === "tec") w.appendChild(el("p", "dica", "A IA usa SOMENTE as referências enviadas; sem referência, usa a base/perfil da banca e registra a lacuna."));
+    if (tipo === "tec") w.appendChild(el("p", "dica", "A IA usa SOMENTE as referências enviadas; sem referência, usa a base/perfil da banca e registra a lacuna. PDF, TXT ou imagem, até 23 MB somando todas as referências. DOCX não é lido pela IA: salve como PDF."));
     return w;
   }
   function mensagem(t, tipo) { f.msg.textContent = t || ""; f.msg.className = "msg-form" + (tipo ? " " + tipo : ""); }
@@ -169,6 +183,7 @@
     if (!tema) { mensagem("Informe o tema técnico.", "erro"); f.tema.focus(); return; }
     var id = ui.uuid();
     var soft = !!COM_SOFT[b];
+    if (somaRefs(soft) > MAX_TOTAL) { mensagem(msgLimite(somaRefs(soft)), "erro"); return; }
     f.enviar.disabled = true;
     mensagem("Enviando as referências…");
     var refsTec, refsSoft;
@@ -208,9 +223,11 @@
     if (g.ok) { semChave = false; mostrarAviso(); }
     if (!g.ok) return;
     var d = g.dados || {};
+    if (acao === "enviar" && d.avisos && d.avisos.length) ui.toast("Avisos do envio: " + d.avisos.join(" "));
     if (acao === "verificar") {
       if (d.status === "concluido" && d.estacao_id) ui.toast("Estação gerada! Ela está no estúdio como rascunho.", "ok");
-      else if (d.status === "erro") ui.toast("A geração terminou com erro: " + (d.erro || d.mensagem || "veja a lista"), "erro");
+      else if (d.status === "erro") ui.toast("A geração terminou com erro: " + (d.erro || d.mensagem || "veja a lista") + (d.pode_reenviar ? " Use “Enviar de novo” na lista." : ""), "erro");
+      else if (d.mensagem) ui.toast(d.mensagem);
       else ui.toast("Ainda em processamento" + (d.status ? " (" + (STATUS[d.status] ? STATUS[d.status][0].toLowerCase() : d.status) + ")" : "") + ". Verifique de novo mais tarde.");
     }
   }
@@ -248,9 +265,10 @@
     if (p.erro) li.appendChild(el("span", "es-aviso-erro es-peq", String(p.erro)));
     var acoes = el("div", "es-linha-botoes");
     if (p.status === "aguardando" || p.status === "erro") acoes.appendChild(ui.botao(p.status === "erro" ? "Enviar de novo" : "Enviar", "mini", function () { acao(this, "enviar", p); }));
-    if (p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Verificar agora", "mini primario", function () { acao(this, "verificar", p); }));
+    // "enviando"/"enviado" sem lote: "Verificar agora" destrava o envio interrompido (após 10 min) → "Enviar de novo"
+    if (p.status === "enviando" || p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Verificar agora", "mini primario", function () { acao(this, "verificar", p); }));
     if (p.status === "concluido" && p.estacao_id) acoes.appendChild(ui.botao("Abrir no estúdio", "mini primario", function () { abrir(p.estacao_id); }));
-    if (p.status === "aguardando" || p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Cancelar", "mini perigo", function () { cancelar(p); }));
+    if (p.status === "aguardando" || p.status === "enviando" || p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Cancelar", "mini perigo", function () { cancelar(p); }));
     if (acoes.firstChild) li.appendChild(acoes);
     return li;
   }
