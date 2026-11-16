@@ -481,6 +481,9 @@
     var eu = (O().eu && O().eu()) || {};
     raiz.appendChild(h("h2", { txt: "Administração" }));
     raiz.appendChild(h("p", { cls: "adm-sub", txt: (eu.nome ? eu.nome + " · " : "") + "Usuários, publicação, sessões, acompanhamento e notas. Criação, edição e revisão de estações continuam no visualizador local." }));
+    /* ACRÉSCIMO (16/11/2026): atalho para o Estúdio de estações (criar, editar, revisar, aprovar, publicar, imprimir e gerar com IA no site) */
+    raiz.appendChild(h("p", null, h("a", { cls: "adm-btn", href: "estudio.html" + (O().demo ? "?demo=1" : ""), txt: "Estúdio de estações" }),
+      h("span", { cls: "adm-sub", txt: " Criar, importar, editar, revisar, aprovar, publicar e imprimir estações no site; gerar estação com IA." })));
     var nav = h("div", { cls: "adm-abas", role: "tablist" });
     var corpo = h("div", { cls: "adm-corpo", role: "tabpanel" });
     raiz.appendChild(nav); raiz.appendChild(corpo);

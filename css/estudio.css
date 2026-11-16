@@ -1,0 +1,116 @@
+/* =====================================================================
+ * estudio.css — Extras do ESTÚDIO online (online/estudio.html).
+ * A interface, o documento A4 e o editor usam os MESMOS estilos do
+ * visualizador local (app/css/interface.css, estacao.css, editor.css).
+ * Nada daqui aparece na impressão (ver @media print no fim).
+ * ===================================================================== */
+
+/* ---------- Portão (login / acesso negado) ---------- */
+.es-portao {
+  position: fixed; inset: 0; z-index: 80; background: var(--ui-fundo);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.es-portao[hidden] { display: none; }
+body.es-bloqueado .barra, body.es-bloqueado .lateral, body.es-bloqueado .area-doc, body.es-bloqueado .painel-revisao { visibility: hidden; }
+.es-cartao {
+  background: #fff; border: 1px solid var(--ui-borda); border-radius: 14px; padding: 22px 24px; width: min(420px, 100%);
+  box-shadow: 0 8px 30px rgba(20, 30, 60, .12); display: grid; gap: 10px;
+}
+.es-cartao h1 { margin: 0; font-size: 20px; color: var(--ui-azul); }
+.es-cartao p { margin: 0; line-height: 1.45; }
+.es-form-login { display: grid; gap: 10px; }
+.es-form-login label, .es-form-dialogo label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.es-form-login input, .es-form-dialogo input, .es-form-dialogo select {
+  width: 100%; border: 1px solid var(--ui-borda); border-radius: 8px; padding: 7px 9px; font: inherit; font-size: 14px; font-weight: 400; background: #fff;
+}
+.es-form-dialogo { display: grid; gap: 10px; margin-bottom: 14px; }
+.es-sutil { color: var(--ui-suave); font-size: 12.5px; line-height: 1.4; }
+.es-peq { font-size: 11.5px; }
+.es-aviso-erro { color: var(--ui-erro); font-size: 12.5px; line-height: 1.4; }
+.es-aviso-erro[hidden] { display: none; }
+.es-linha-botoes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.es-linha-botoes a.btn { text-decoration: none; color: inherit; }
+
+/* ---------- Barra superior ---------- */
+.es-quem { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ui-suave); white-space: nowrap; }
+.es-quem .es-nome { font-weight: 600; color: var(--ui-texto); }
+.es-quem .btn-link { font-size: 12.5px; }
+#btn-publicar:not([disabled]) { border-color: #A9DBB7; color: #1E6B35; font-weight: 600; }
+#btn-publicar:not([disabled]):hover { background: #F2FBF4; }
+
+/* ---------- Barra lateral ---------- */
+.es-acoes { display: flex; flex-wrap: wrap; gap: 4px; }
+.es-arquivo { position: relative; overflow: hidden; display: inline-flex; align-items: center; }
+.es-arquivo input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; font-size: 0; }
+.es-arquivo.es-desab { opacity: .45; pointer-events: none; }
+.es-linha2 { display: grid; grid-template-columns: 1fr 1.3fr; gap: 8px; }
+.lateral .filtros .es-chk { display: inline-flex; font-size: 12.5px; color: var(--ui-texto); }
+.es-msg { font-size: 12px; line-height: 1.4; word-break: break-word; }
+.es-msg:empty { display: none; }
+.es-msg.ok { color: #1E6B35; }
+.es-msg.erro { color: var(--ui-erro); }
+.item-estacao.es-arquivada { opacity: .65; }
+.selo-ui.es-origem-gerada { color: #5B3E8F; background: #EFE8FA; border-color: #CDBDEB; }
+.selo-ui.es-origem-nova, .selo-ui.es-origem-duplicada { color: #2F5DA8; background: #E3ECFA; border-color: #BCD0F0; }
+.selo-ui.es-publicada { color: #1E6B35; background: #fff; border-color: #A9DBB7; }
+
+/* ---------- Aba "Gerar com IA" ---------- */
+.es-painel-ia .es-intro-ia { margin: 0 0 10px; }
+.es-aviso-ia {
+  border: 1px solid #F0C79A; background: #FFF6E5; color: #6B4600; border-radius: 10px; padding: 9px 11px; margin-bottom: 12px;
+  font-size: 12.5px; line-height: 1.45; display: grid; gap: 4px; grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere;
+}
+.es-aviso-ia[hidden] { display: none; }
+.es-pedidos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.es-pedidos li.pedido { background: #fff; border: 1px solid var(--ui-borda); border-radius: 10px; padding: 7px 9px; display: grid; gap: 4px; }
+.es-pedidos .tit { font-weight: 600; font-size: 13px; }
+.es-pedidos .meta { display: flex; gap: 4px; flex-wrap: wrap; }
+.es-pedidos li.vazio { font-size: 12.5px; color: var(--ui-suave); }
+
+/* ---------- Faixa de versão antiga ---------- */
+.es-banner {
+  position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+  background: #FFF6CC; border-bottom: 1px solid #EAD98A; color: #6B5A00; padding: 8px 12px; font-size: 13px;
+}
+.es-banner[hidden] { display: none; }
+
+/* ---------- Diálogos, tabelas e registros ---------- */
+dialog.es-dialogo-largo { max-width: 720px; }
+.es-rolagem { max-height: 55vh; overflow: auto; margin-bottom: 14px; border: 1px solid var(--ui-borda); border-radius: 8px; }
+.es-tabela { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.es-tabela th, .es-tabela td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--ui-borda); vertical-align: top; }
+.es-tabela th { background: var(--ui-lateral); position: sticky; top: 0; font-size: 11.5px; color: var(--ui-suave); }
+.es-tabela td.num { font-weight: 700; white-space: nowrap; }
+.es-tabela tr.es-atual td { background: #F2FBF4; }
+.es-acoes-celula { white-space: nowrap; }
+.es-acoes-celula .btn + .btn { margin-left: 4px; }
+.es-log {
+  list-style: none; margin: 0 0 14px; padding: 8px 10px; max-height: 50vh; overflow: auto; font-size: 12.5px; line-height: 1.45;
+  border: 1px solid var(--ui-borda); border-radius: 8px; background: var(--ui-lateral); white-space: pre-wrap; word-break: break-word;
+}
+.es-log li.ok { color: #1E6B35; }
+.es-log li.erro { color: var(--ui-erro); }
+.es-log li.aviso { color: var(--ui-aviso); }
+
+/* ---------- Avisos rápidos ---------- */
+.es-toasts { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; gap: 8px; width: min(92vw, 480px); pointer-events: none; }
+.es-toast { background: #1d2433; color: #fff; border-radius: 10px; padding: 11px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25); transition: opacity .5s, transform .5s; font-weight: 600; font-size: 13px; }
+.es-toast-ok { background: #1E6B35; }
+.es-toast-erro { background: var(--ui-erro); }
+.es-toast.sai { opacity: 0; transform: translateY(8px); }
+
+/* ---------- Modo demonstração (só local, ?demo=1) ---------- */
+.es-faixa-demo {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 85; background: #fff4d9; color: #6b4600; border-top: 1px solid #f0d9a0;
+  padding: 5px 12px; font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center;
+}
+.es-faixa-demo[hidden] { display: none; }
+.es-faixa-demo label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+body.es-com-demo .lista, body.es-com-demo .area-doc, body.es-com-demo .painel-revisao, body.es-com-demo .painel-nova { padding-bottom: 46px; }
+
+/* ---------- Impressão: só o documento (igual ao visualizador local) ---------- */
+@media print {
+  .es-portao, .es-faixa-demo, .es-toasts, .es-banner, .es-quem, dialog { display: none !important; }
+  body.es-bloqueado .area-doc { visibility: visible; }
+  body.es-com-demo .area-doc { padding-bottom: 0 !important; }
+}

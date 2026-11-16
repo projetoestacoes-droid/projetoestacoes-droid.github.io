@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://uyjrqiurjywfeaifwpct.supabase.co; connect-src https://uyjrqiurjywfeaifwpct.supabase.co wss://uyjrqiurjywfeaifwpct.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="theme-color" content="#23428D">
+  <title>Estações · Estúdio</title>
+  <!-- Mesma fonte de reserva do visualizador local (a Transat Text entra por app/fontes/). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,600;0,700;1,400;1,700&display=swap">
+  <!-- Os MESMOS estilos do visualizador local (documento A4, interface, editor) + extras do estúdio -->
+  <link rel="stylesheet" href="app/css/estacao.css">
+  <link rel="stylesheet" href="app/css/interface.css">
+  <link rel="stylesheet" href="app/css/editor.css">
+  <link rel="stylesheet" href="css/estudio.css">
+</head>
+<body class="es-bloqueado">
+  <!-- Portão: login (e-mail e senha, a mesma sessão do site) e checagem de perfil.
+       Enquanto não houver administrador confirmado pelo servidor, nada do estúdio é carregado. -->
+  <div class="es-portao" id="es-portao" role="dialog" aria-modal="true" aria-labelledby="es-portao-titulo">
+    <section class="es-cartao" id="es-portao-cartao">
+      <h1 id="es-portao-titulo">Estúdio de estações</h1>
+      <p class="es-sutil">Carregando…</p>
+    </section>
+  </div>
+
+  <header class="barra">
+    <div class="marca-app">Projeto Estações <span>· estúdio</span></div>
+    <div class="atual" id="atual">Nenhuma estação selecionada</div>
+    <div class="grupo-ctl">
+      <label class="chk"><input type="checkbox" id="opt-capa"> Incluir capa</label>
+      <select id="opt-zoom" aria-label="Zoom">
+        <option value="0.6">60%</option>
+        <option value="0.75">75%</option>
+        <option value="0.9">90%</option>
+        <option value="1" selected>100%</option>
+        <option value="1.25">125%</option>
+      </select>
+      <button class="btn" id="btn-editar" aria-pressed="false" type="button" title="Editar a estação direto no documento">Editar</button>
+      <button class="btn" id="btn-revisao" aria-pressed="false" type="button">Modo revisão</button>
+      <button class="btn" id="btn-publicar" type="button" disabled title="Só estações com status “Aprovada” (Editar › Status › Aprovada › Salvar)">Publicar para aplicação</button>
+      <button class="btn primario" id="btn-imprimir" type="button">Imprimir / Salvar PDF</button>
+    </div>
+    <div class="es-quem" id="es-quem"></div>
+  </header>
+
+  <aside class="lateral">
+    <section class="painel-edicao" id="painel-edicao" aria-label="Modo edição" hidden></section>
+    <div class="abas" role="tablist" aria-label="Barra lateral">
+      <button type="button" role="tab" id="aba-estacoes" aria-controls="painel-estacoes" aria-selected="true">Estações</button>
+      <button type="button" role="tab" id="aba-ia" aria-controls="painel-ia" aria-selected="false">Gerar com IA</button>
+    </div>
+
+    <section class="painel-aba painel-estacoes" id="painel-estacoes" role="tabpanel" aria-labelledby="aba-estacoes">
+      <div class="filtros">
+        <div class="es-acoes" aria-label="Ações">
+          <button class="btn mini" type="button" id="es-nova">Nova em branco</button>
+          <button class="btn mini" type="button" id="es-duplicar">Duplicar</button>
+          <span class="es-arquivo btn mini" title="Arquivos estacao.js / .json de saidas/ (vários de uma vez) e as imagens da pasta img/">
+            Importar arquivos…
+            <input type="file" id="es-importar" multiple accept=".js,.json,application/json,text/javascript,image/png,image/jpeg,image/webp,image/gif" aria-label="Importar arquivos de estação e imagens">
+          </span>
+          <span class="es-arquivo btn mini" title="Escolha a pasta saidas/ (ou a pasta de uma estação): importa cada estacao.js com as imagens da sua pasta img/ (ignora versoes/)">
+            Importar pasta…
+            <input type="file" id="es-importar-pasta" webkitdirectory multiple aria-label="Importar pasta de estações">
+          </span>
+          <span class="es-arquivo btn mini" id="es-imagens-rot" title="Enviar imagens (img/…) da estação aberta">
+            Imagens…
+            <input type="file" id="es-imagens" multiple accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Enviar imagens da estação aberta">
+          </span>
+          <button class="btn mini" type="button" id="es-historico">Histórico</button>
+          <button class="btn mini" type="button" id="es-baixar" title="Baixar a estação aberta como estacao.js">Baixar .js</button>
+          <button class="btn mini" type="button" id="es-recarregar" title="Recarregar a lista e a estação aberta do servidor">Recarregar</button>
+          <button class="btn mini perigo" type="button" id="es-arquivar">Arquivar</button>
+        </div>
+        <label>Banca
+          <select id="filtro-banca">
+            <option value="">Todas as bancas</option>
+            <option value="einstein">Einstein</option>
+            <option value="sirio-libanes">Sírio-Libanês</option>
+            <option value="usp-ribeirao">USP Ribeirão</option>
+            <option value="unifesp-r1">Unifesp R1</option>
+            <option value="unifesp-rmais">Unifesp R+</option>
+            <option value="tradicional">Tradicional</option>
+          </select>
+        </label>
+        <div class="es-linha2">
+          <label>Status
+            <select id="filtro-status">
+              <option value="">Todos</option>
+              <option value="rascunho">Rascunho</option>
+              <option value="em-revisao">Em revisão</option>
+              <option value="aprovada">Aprovada</option>
+            </select>
+          </label>
+          <label>Buscar
+            <input type="search" id="filtro-texto" placeholder="Título, área ou id">
+          </label>
+        </div>
+        <label class="chk es-chk"><input type="checkbox" id="filtro-arquivadas"> Mostrar arquivadas</label>
+        <div class="es-msg" id="es-msg" role="status" aria-live="polite"></div>
+      </div>
+      <nav class="lista" id="lista" aria-label="Estações"></nav>
+    </section>
+
+    <section class="painel-aba painel-nova es-painel-ia" id="painel-ia" role="tabpanel" aria-labelledby="aba-ia" hidden></section>
+  </aside>
+
+  <main class="area-doc" id="area-doc">
+    <div class="es-banner" id="es-banner" hidden></div>
+    <div class="aviso-central" id="aviso">Carregando…</div>
+    <div id="documento" class="documento" lang="pt-BR"></div>
+  </main>
+
+  <aside class="painel-revisao" id="painel-revisao" aria-label="Modo revisão"></aside>
+
+  <div class="es-faixa-demo" id="es-faixa-demo" hidden></div>
+
+  <!-- Ordem: configuração → revisão e diagramador (os do visualizador local) → núcleo do estúdio
+       → App (antes do editor) → gravação online → editor (o do visualizador local) → importar → IA.
+       estudio-demo.js NÃO é listado: só é carregado com ?demo=1 no computador local, e o
+       montar-casca.sh o exclui da publicação. -->
+  <script src="js/config.js"></script>
+  <script src="app/js/revisao.js"></script>
+  <script src="app/js/render.js"></script>
+  <script src="js/estudio-dados.js"></script>
+  <script src="js/estudio-app.js"></script>
+  <script src="js/estudio-salvar.js"></script>
+  <script src="app/js/editor.js"></script>
+  <script src="js/estudio-importar.js"></script>
+  <script src="js/estudio-ia.js"></script>
+</body>
+</html>

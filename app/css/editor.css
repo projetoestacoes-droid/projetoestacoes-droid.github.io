@@ -1,0 +1,124 @@
+/* =====================================================================
+ * editor.css — Modo edição (editor.js). Nada daqui aparece na impressão.
+ * Segue o visual de interface.css (azul #23428D, .btn / .btn.primario).
+ * Só contornos (outline) no documento: não muda medidas nem quebras de página.
+ * ===================================================================== */
+
+/* ---------- Botão "Editar" ---------- */
+#btn-editar[disabled] { opacity: .5; cursor: default; }
+#btn-editar.com-pendencias::after {
+  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #E0A100; margin-left: 6px; vertical-align: middle;
+}
+.btn[disabled] { opacity: .45; cursor: default; }
+.btn[disabled]:hover { background: #fff; }
+.btn.perigo { color: var(--ui-erro); border-color: #F2B8B3; }
+.btn.perigo:hover { background: #FCE4E2; }
+.btn.mini { padding: 3px 8px; font-size: 12px; border-radius: 7px; }
+.selo-ui.alterada { color: #8A4B00; background: #FFF0D6; border-color: #F0C79A; font-weight: 600; }
+
+/* ---------- Painel de edição (topo da barra lateral) ---------- */
+.painel-edicao {
+  flex: none; max-height: 62vh; overflow: auto; background: #fff;
+  border-bottom: 2px solid var(--ui-azul); padding: 10px 12px 12px; display: grid; gap: 8px;
+}
+.painel-edicao[hidden] { display: none !important; }
+.painel-edicao .ed-cab { display: flex; justify-content: space-between; align-items: baseline; }
+.painel-edicao h2 { margin: 0; font-size: 15px; color: var(--ui-azul); }
+.painel-edicao .ed-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ed-campo-painel { display: grid; gap: 3px; min-width: 0; }
+.ed-rot { font-size: 11.5px; font-weight: 600; color: var(--ui-suave); }
+.ed-campo-painel input, .ed-campo-painel select, .ed-campo-painel textarea {
+  width: 100%; min-width: 0; border: 1px solid var(--ui-borda); border-radius: 8px; padding: 5px 7px;
+  background: #fff; font: inherit; font-size: 13px;
+}
+.ed-campo-painel textarea { resize: vertical; line-height: 1.3; }
+.ed-soma {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 2px 8px;
+  border: 1px solid var(--ui-borda); border-radius: 8px; padding: 6px 9px; background: var(--ui-lateral);
+}
+.ed-soma .ed-soma-valor { font-weight: 700; font-size: 15px; justify-self: end; }
+.ed-soma .ed-soma-det { grid-column: 1 / -1; font-size: 11.5px; color: var(--ui-suave); }
+.ed-soma.ok { border-color: #A9DBB7; background: #F2FBF4; }
+.ed-soma.ok .ed-soma-valor { color: #1E6B35; }
+.ed-soma.difere { border-color: #F2B8B3; background: #FFF8F7; }
+.ed-soma.difere .ed-soma-valor, .ed-soma.difere .ed-soma-det { color: var(--ui-erro); }
+.ed-contador { font-size: 12.5px; color: var(--ui-suave); }
+.ed-contador.pendente { color: var(--ui-aviso); font-weight: 600; }
+.ed-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.ed-acoes .btn { padding: 5px 9px; font-size: 12.5px; }
+.ed-gravar { display: flex; gap: 10px; align-items: center; }
+.ed-gravar .btn.primario { flex: 1; }
+.ed-gravar .btn-link[hidden] { display: none; }
+.ed-destino { font-size: 11px; color: var(--ui-suave); line-height: 1.35; word-break: break-word; }
+.ed-msg { font-size: 12.5px; line-height: 1.4; word-break: break-word; }
+.ed-msg:empty { display: none; }
+.ed-msg.ok { color: #1E6B35; }
+.ed-msg.erro { color: var(--ui-erro); }
+.ed-extra { display: flex; gap: 6px; flex-wrap: wrap; }
+.ed-extra:empty { display: none; }
+.ed-dica { margin: 0; font-size: 11px; color: var(--ui-suave); line-height: 1.35; }
+
+/* ---------- Documento em modo edição ---------- */
+body.modo-edicao #documento [data-ed] { cursor: text; }
+body.modo-edicao #documento .ed-alvo { outline: 2px dashed rgba(35, 66, 141, .75); outline-offset: 1px; }
+body.modo-edicao #documento .ed-ativo { outline: 2px solid #23428D; outline-offset: 1px; }
+body.modo-edicao #documento td.ed-alvo, body.modo-edicao #documento td.ed-ativo,
+body.modo-edicao #documento th.ed-alvo, body.modo-edicao #documento th.ed-ativo { outline-offset: -2px; }
+#documento .ed-piscar { animation: ed-piscar 1.3s ease-out; }
+@keyframes ed-piscar {
+  0% { outline: 3px solid rgba(224, 161, 0, .95); outline-offset: 1px; }
+  100% { outline: 3px solid rgba(224, 161, 0, 0); outline-offset: 1px; }
+}
+.ed-espacador { position: absolute; top: 0; left: 0; width: 1px; pointer-events: none; visibility: hidden; }
+
+/* ---------- Balão de edição ---------- */
+.ed-popover {
+  position: fixed; z-index: 50; background: #fff; border: 1px solid var(--ui-borda); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(20, 30, 60, .22), 0 2px 6px rgba(20, 30, 60, .12);
+  padding: 10px 12px 12px; display: grid; gap: 7px; font-family: var(--ui-fonte); font-size: 13px; color: var(--ui-texto);
+  max-height: calc(100vh - 16px); overflow: auto;
+}
+.ed-pop-cab { display: flex; align-items: flex-start; gap: 8px; }
+.ed-pop-rotulo { flex: 1; font-weight: 700; color: var(--ui-azul); font-size: 13px; line-height: 1.3; }
+.ed-x { border: 0; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; color: var(--ui-suave); padding: 0 4px; border-radius: 6px; }
+.ed-x:hover { background: #F1F3F6; color: var(--ui-texto); }
+.ed-pop-caminho { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; color: var(--ui-suave); word-break: break-all; margin-top: -4px; }
+.ed-campo {
+  width: 100%; border: 1px solid #B9C3D9; border-radius: 8px; padding: 7px 9px; font: inherit; font-size: 13.5px; line-height: 1.4;
+  background: #fff; color: var(--ui-texto);
+}
+textarea.ed-campo { resize: vertical; min-height: 52px; }
+.ed-campo:focus { outline: 2px solid var(--ui-azul); outline-offset: 0; border-color: var(--ui-azul); }
+.ed-num { max-width: 140px; }
+.ed-pop-dica { font-size: 11px; color: var(--ui-suave); }
+.ed-pop-erro { font-size: 12px; color: var(--ui-erro); line-height: 1.35; }
+.ed-pop-erro:empty { display: none; }
+.ed-pop-acoes { display: flex; gap: 6px; }
+.ed-estrutura { border-top: 1px solid var(--ui-borda); padding-top: 7px; display: grid; gap: 7px; }
+.ed-nivel { display: grid; gap: 4px; }
+.ed-nivel-rot { font-size: 11.5px; font-weight: 600; color: var(--ui-suave); }
+.ed-nivel-bts { display: flex; gap: 4px; flex-wrap: wrap; }
+.ed-tipos { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; background: var(--ui-azul-claro); border-radius: 8px; padding: 5px 6px; }
+.ed-tipos[hidden] { display: none; }
+.ed-tipos .ed-rot { color: var(--ui-azul); margin-right: 2px; }
+.ed-chacoalhar { animation: ed-chacoalhar .35s; }
+@keyframes ed-chacoalhar { 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+
+/* ---------- Diálogo de confirmação ---------- */
+dialog.ed-dialogo {
+  border: 1px solid var(--ui-borda); border-radius: 12px; padding: 16px 18px; max-width: 460px; width: calc(100vw - 32px);
+  font-family: var(--ui-fonte); font-size: 13.5px; color: var(--ui-texto); box-shadow: 0 16px 40px rgba(20, 30, 60, .25);
+}
+dialog.ed-dialogo::backdrop { background: rgba(20, 28, 45, .35); }
+dialog.ed-dialogo h3 { margin: 0 0 8px; font-size: 15px; color: var(--ui-azul); }
+dialog.ed-dialogo p { margin: 0 0 14px; line-height: 1.45; }
+.ed-dialogo-acoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- Impressão: nada do editor ---------- */
+@media print {
+  .painel-edicao, .ed-popover, dialog.ed-dialogo, .ed-espacador, #btn-editar { display: none !important; }
+  #documento [data-ed], #documento .ed-alvo, #documento .ed-ativo, #documento .ed-piscar {
+    outline: none !important; animation: none !important; cursor: auto !important;
+  }
+}
