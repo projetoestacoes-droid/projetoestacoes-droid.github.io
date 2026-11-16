@@ -12,6 +12,9 @@ window.ONLINE_CONFIG = {
   chavePublicavel: "sb_publishable_TpBPE6rdo9HFW_ZCLcm7gQ_aSgqxZ0n",
   /* supabase-js com versão FIXA (nunca "@2" solto) */
   supabaseJs: "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js",
+  /* SRI conferido em 16/11/2026 (111.088 bytes). Se trocar a versão, recalcule:
+     curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A */
+  supabaseJsSri: "sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug",
   bucket: "estacoes",
   validadeUrlImagem: 900,          /* segundos (15 min) */
   chaveSessao: "estacoes-online-auth",

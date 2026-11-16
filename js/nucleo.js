@@ -24,6 +24,8 @@
  * ===================================================================== */
 (function () {
   "use strict";
+  /* Proteção contra exibir o site dentro de outra página (clickjacking); o GitHub Pages não envia cabeçalhos */
+  if (window.top !== window.self) { document.documentElement.style.display = "none"; try { window.top.location = window.self.location; } catch (e) { /* nada */ } return; }
 
   var CFG = window.ONLINE_CONFIG || {};
   var params = new URLSearchParams(location.search);
@@ -149,6 +151,8 @@
       var s = document.createElement("script");
       s.src = src; s.async = false;
       if (/^https:/.test(src)) { s.crossOrigin = "anonymous"; s.referrerPolicy = "no-referrer"; }
+      // integridade (SRI): o navegador recusa o arquivo do CDN se ele for alterado
+      if (src === CFG.supabaseJs && CFG.supabaseJsSri) s.integrity = CFG.supabaseJsSri;
       s.onload = function () { ok(); };
       s.onerror = function () { falha(new Error("Não foi possível carregar " + src)); };
       document.head.appendChild(s);
@@ -546,9 +550,24 @@
       pilha.forEach(function (x) { if (x.aoSair) try { x.aoSair(); } catch (e) { console.error(e); } });
       pilha = []; estado.eu = null;
       try { sessionStorage.removeItem("estacoes-eu"); } catch (x) { /* nada */ }
+      limparAparelho();
       if (MODO_DEMO) { window.Demo.sair(); iniciarDemo(); return; }
-      Online.sb.auth.signOut().finally(telaLogin);
+      // "local": apaga a sessão do aparelho mesmo sem internet (o "global" desiste se a rede falha)
+      Online.sb.auth.signOut({ scope: "local" })
+        .catch(function () { /* nada */ })
+        .finally(function () {
+          try { localStorage.removeItem(CFG.chaveSessao); localStorage.removeItem(CFG.chaveSessao + "-code-verifier"); } catch (x) { /* nada */ }
+          telaLogin();
+        });
     });
+  }
+  /* Ao sair: apaga do aparelho o material e as cópias da estação (a fila offline
+     de avaliações "estacoes-fila:*" fica, de propósito, para ser enviada no próximo login) */
+  function limparAparelho() {
+    try {
+      Object.keys(sessionStorage).forEach(function (k) { if (/^estacoes-/.test(k)) sessionStorage.removeItem(k); });
+      Object.keys(localStorage).forEach(function (k) { if (/^estacoes-crono/.test(k)) localStorage.removeItem(k); });
+    } catch (x) { /* nada */ }
   }
 
   var erroDoLink = null;
@@ -568,6 +587,7 @@
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: CFG.chaveSessao, flowType: "implicit" }
       });
       Online.sb.auth.onAuthStateChange(function (ev) {
+        if (ev === "SIGNED_OUT") limparAparelho();
         if (ev === "SIGNED_OUT" && estado.eu) { estado.eu = null; telaLogin(); }
       });
       /* Retorno do link mágico: fluxo implicit (#access_token=…) é lido pelo
