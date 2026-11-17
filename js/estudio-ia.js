@@ -1,5 +1,5 @@
 /* =====================================================================
- * estudio-ia.js — Aba "Gerar com IA" do ESTÚDIO online.
+ * estudio-ia.js — Aba "IA: gerar e importar" do ESTÚDIO online.
  *
  * Formulário igual ao "Nova estação" do visualizador local (app/js/pedido.js):
  * banca, área, dia (Einstein), tema, ideia, foco de soft skills e referências de
@@ -11,6 +11,10 @@
  *   a estação aparece no estúdio como RASCUNHO (origem "gerada") e o pedido ganha
  *   o link "Abrir no estúdio".
  * Sem a chave ANTHROPIC_API_KEY no Supabase, a função responde 503 e a aba avisa.
+ *
+ * A lista mostra também os pedidos tipo "importar" (PDF transcrito pela IA, criados
+ * em "Importar arquivos…" por estudio-importar.js): arquivo, páginas e um botão
+ * "Abrir no estúdio" para cada estação criada (estacao_ids).
  * ===================================================================== */
 (function () {
   "use strict";
@@ -119,7 +123,7 @@
     f.aviso.setAttribute("role", "alert");
     f.aviso.hidden = true;
     painel.appendChild(f.aviso);
-    painel.appendChild(el("p", "es-sutil es-intro-ia", "Pedido de estação gerada por IA (modelo Claude Opus 5.5, em lote). A estação volta como rascunho no estúdio, para editar, revisar e aprovar."));
+    painel.appendChild(el("p", "es-sutil es-intro-ia", "Pedido de estação gerada por IA (modelo Claude Opus 5.5, em lote). A estação volta como rascunho no estúdio, para editar, revisar e aprovar. Para transcrever um PDF (ex.: Checklists Dominados), use “Importar arquivos…” na aba Estações: o pedido aparece nesta lista."));
 
     var form = el("form", "form-pedido"); form.noValidate = true;
     f.banca = el("select"); f.banca.id = "ia-banca";
@@ -225,7 +229,10 @@
     var d = g.dados || {};
     if (acao === "enviar" && d.avisos && d.avisos.length) ui.toast("Avisos do envio: " + d.avisos.join(" "));
     if (acao === "verificar") {
-      if (d.status === "concluido" && d.estacao_id) ui.toast("Estação gerada! Ela está no estúdio como rascunho.", "ok");
+      var ids = idsDe(d);
+      if (d.status === "concluido" && ids.length > 1) ui.toast(ids.length + " estações criadas! Estão no estúdio como rascunho.", "ok");
+      else if (d.status === "concluido" && ids.length) ui.toast("Estação criada! Ela está no estúdio como rascunho.", "ok");
+      else if (d.status === "concluido") ui.toast("Pedido concluído, mas nenhuma estação foi encontrada" + (d.erro || d.mensagem ? ": " + (d.erro || d.mensagem) : ".") , "erro");
       else if (d.status === "erro") ui.toast("A geração terminou com erro: " + (d.erro || d.mensagem || "veja a lista") + (d.pode_reenviar ? " Use “Enviar de novo” na lista." : ""), "erro");
       else if (d.mensagem) ui.toast(d.mensagem);
       else ui.toast("Ainda em processamento" + (d.status ? " (" + (STATUS[d.status] ? STATUS[d.status][0].toLowerCase() : d.status) + ")" : "") + ". Verifique de novo mais tarde.");
@@ -233,6 +240,15 @@
   }
 
   /* ---------------- lista de pedidos ---------------- */
+  function idsDe(p) {
+    var ids = Array.isArray(p && p.estacao_ids) ? p.estacao_ids.filter(Boolean) : [];
+    if (!ids.length && p && p.estacao_id) ids = [p.estacao_id];
+    return ids;
+  }
+  function tituloDe(id) {
+    var x = window.App && window.App.entradaPorId ? window.App.entradaPorId(id) : null;
+    return x && x.linha && x.linha.titulo ? String(x.linha.titulo) : "";
+  }
   function carregarPedidos() {
     if (!f.lista) return Promise.resolve();
     return E.api.listarPedidos().then(function (ps) {
@@ -245,13 +261,16 @@
     });
   }
   function itemPedido(p) {
-    var li = el("li", "pedido");
-    li.appendChild(el("span", "tit", String(p.tema || "(sem tema)")));
+    var imp = p.tipo === "importar";
+    var li = el("li", "pedido" + (imp ? " es-pedido-importar" : ""));
+    li.appendChild(el("span", "tit", imp ? String(p.arquivo_original || "PDF importado") : String(p.tema || "(sem tema)")));
     var st = STATUS[p.status] || [p.status || "?", ""];
     li.appendChild(el("span", "meta", [
-      el("span", "selo-ui banca", nomeBanca(p.banca)),
+      el("span", "selo-ui " + (imp ? "es-tipo-importar" : "es-tipo-gerar"), imp ? "Importar PDF" : "Gerar"),
+      el("span", "selo-ui banca", imp && !p.banca ? "Banca: detectar" : nomeBanca(p.banca)),
       el("span", "selo-ui " + st[1], st[0]),
-      p.area ? el("span", "selo-ui", p.area + (p.dia ? " · " + p.dia : "")) : null
+      imp ? el("span", "selo-ui", "Páginas " + (p.paginas || "todas")) : null,
+      !imp && p.area ? el("span", "selo-ui", p.area + (p.dia ? " · " + p.dia : "")) : null
     ]));
     var info = [ui.fmtData(p.criado_em)];
     if (p.custo_estimado_usd != null) info.push("custo estimado ≈ US$ " + ui.fmtNum(p.custo_estimado_usd, 2));
@@ -259,15 +278,21 @@
     if (uso && (uso.input_tokens != null || uso.output_tokens != null)) info.push(ui.fmtNum((uso.input_tokens || 0) / 1000, 0) + " mil tokens de entrada, " + ui.fmtNum((uso.output_tokens || 0) / 1000, 0) + " mil de saída");
     var nRefs = p.n_referencias_tecnicas != null || p.n_referencias_soft != null ? (p.n_referencias_tecnicas || 0) + (p.n_referencias_soft || 0) :
       (p.referencias_tecnicas || []).length + (p.referencias_soft || []).length;
-    info.push(nRefs + " referência(s)");
+    if (!imp) info.push(nRefs + " referência(s)");
+    var ids = idsDe(p);
+    if (imp && p.status === "concluido") info.push(ids.length + " estação(ões) criada(s)");
     li.appendChild(el("span", "es-sutil es-peq", info.join(" · ")));
-    if (p.estacao_titulo) li.appendChild(el("span", "es-sutil es-peq", "Estação: " + p.estacao_titulo));
+    if (p.estacao_titulo && ids.length <= 1) li.appendChild(el("span", "es-sutil es-peq", "Estação: " + p.estacao_titulo));
     if (p.erro) li.appendChild(el("span", "es-aviso-erro es-peq", String(p.erro)));
     var acoes = el("div", "es-linha-botoes");
     if (p.status === "aguardando" || p.status === "erro") acoes.appendChild(ui.botao(p.status === "erro" ? "Enviar de novo" : "Enviar", "mini", function () { acao(this, "enviar", p); }));
     // "enviando"/"enviado" sem lote: "Verificar agora" destrava o envio interrompido (após 10 min) → "Enviar de novo"
     if (p.status === "enviando" || p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Verificar agora", "mini primario", function () { acao(this, "verificar", p); }));
-    if (p.status === "concluido" && p.estacao_id) acoes.appendChild(ui.botao("Abrir no estúdio", "mini primario", function () { abrir(p.estacao_id); }));
+    if (p.status === "concluido") ids.forEach(function (eid, i) {
+      var tit = tituloDe(eid);
+      var rot = ids.length > 1 ? "Abrir no estúdio (" + (i + 1) + "/" + ids.length + ")" : "Abrir no estúdio";
+      acoes.appendChild(ui.botao(rot, "mini primario", function () { abrir(eid); }, tit ? "Abrir “" + tit + "”" : null));
+    });
     if (p.status === "aguardando" || p.status === "enviando" || p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Cancelar", "mini perigo", function () { cancelar(p); }));
     if (acoes.firstChild) li.appendChild(acoes);
     return li;
@@ -279,9 +304,8 @@
       tratarResposta(g, qual);
       if (!g.ok && !g.semChave) ui.toast("Falhou: " + g.mensagem, "erro");
       if (g.ok && qual === "enviar") ui.toast("Pedido enviado à IA.", "ok");
-      return carregarPedidos().then(function () {
-        if (g.ok && qual === "verificar" && g.dados && g.dados.status === "concluido" && window.App) return window.App.recarregarLista();
-      });
+      var antes = g.ok && qual === "verificar" && g.dados && g.dados.status === "concluido" && window.App ? window.App.recarregarLista() : Promise.resolve();
+      return antes.catch(function () { /* a lista do estúdio recarrega depois */ }).then(function () { return carregarPedidos(); });
     }).then(function () { bt.disabled = false; bt.textContent = t; });
   }
   function abrir(estacaoId) {
@@ -289,10 +313,10 @@
     if (!App) return;
     App.recarregarLista().then(function () {
       return App.abrirPorId(estacaoId);
-    }).then(function (ok) { if (ok === false && !App.entradaPorId(estacaoId)) ui.toast("A estação gerada não está na lista (foi arquivada?). Marque “Mostrar arquivadas”.", "erro"); });
+    }).then(function (ok) { if (ok === false && !App.entradaPorId(estacaoId)) ui.toast("A estação não está na lista (foi arquivada?). Marque “Mostrar arquivadas”.", "erro"); });
   }
   function cancelar(p) {
-    ui.confirmar("Cancelar o pedido?", "“" + (p.tema || "") + "”: o pedido deixa de ser processado. Se já estiver na IA, o resultado é descartado.", "Cancelar pedido", true).then(function (ok) {
+    ui.confirmar("Cancelar o pedido?", "“" + (p.tipo === "importar" ? (p.arquivo_original || "PDF") : (p.tema || "")) + "”: o pedido deixa de ser processado. Se já estiver na IA, o resultado é descartado.", "Cancelar pedido", true).then(function (ok) {
       if (!ok) return;
       E.api.cancelarPedido(p.id).then(function () { ui.toast("Pedido cancelado.", "ok"); return carregarPedidos(); }, function (e) { ui.toast(ui.textoErro(e), "erro"); });
     });

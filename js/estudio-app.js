@@ -272,7 +272,7 @@
       ui.limpar(doc);
       aviso.style.display = "";
       aviso.textContent = !estado.carregou ? "Carregando…" : estado.entradas.length ? "Selecione uma estação na lista." :
-        "Nenhuma estação no estúdio. Use “Importar arquivos…”, “Importar pasta…”, “Nova em branco” ou a aba “Gerar com IA”.";
+        "Nenhuma estação no estúdio. Use “Importar arquivos…”, “Importar pasta…”, “Nova em branco” ou a aba “IA: gerar e importar” (inclui importar PDF).";
       $("atual").textContent = "Nenhuma estação selecionada";
       atualizarRevisao();
       atualizarBotoes();

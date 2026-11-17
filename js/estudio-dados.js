@@ -169,6 +169,10 @@
     estacao_nao_e_objeto: "O conteúdo não é um objeto de estação.",
     estacao_arquivada: "A estação está arquivada: desarquive antes de publicar.",
     pedido_inexistente: "Pedido inexistente.",
+    tipo_invalido: "Tipo de pedido inválido (gerar ou importar).",
+    paginas_invalidas: "Páginas inválidas (use, por exemplo, 2-6 ou 2,4-5).",
+    pdf_obrigatorio: "O pedido de importação precisa do PDF recortado.",
+    arquivo_original_invalido: "Nome do PDF original inválido (até 300 caracteres).",
     funcao_inexistente: "Função do servidor não encontrada: a migração 004_estudio.sql ainda não foi aplicada no Supabase."
   };
   function textoErro(e) {

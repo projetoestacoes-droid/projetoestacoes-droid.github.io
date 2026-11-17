@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow, noarchive">
-  <meta name="referrer" content="no-referrer"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://uyjrqiurjywfeaifwpct.supabase.co; connect-src https://uyjrqiurjywfeaifwpct.supabase.co wss://uyjrqiurjywfeaifwpct.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="no-referrer"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://uyjrqiurjywfeaifwpct.supabase.co; connect-src https://uyjrqiurjywfeaifwpct.supabase.co wss://uyjrqiurjywfeaifwpct.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="theme-color" content="#23428D">
   <title>Estações · Estúdio</title>
   <!-- Mesma fonte de reserva do visualizador local (a Transat Text entra por app/fontes/). -->
@@ -53,7 +53,7 @@
     <section class="painel-edicao" id="painel-edicao" aria-label="Modo edição" hidden></section>
     <div class="abas" role="tablist" aria-label="Barra lateral">
       <button type="button" role="tab" id="aba-estacoes" aria-controls="painel-estacoes" aria-selected="true">Estações</button>
-      <button type="button" role="tab" id="aba-ia" aria-controls="painel-ia" aria-selected="false">Gerar com IA</button>
+      <button type="button" role="tab" id="aba-ia" aria-controls="painel-ia" aria-selected="false">IA: gerar e importar</button>
     </div>
 
     <section class="painel-aba painel-estacoes" id="painel-estacoes" role="tabpanel" aria-labelledby="aba-estacoes">
@@ -61,9 +61,9 @@
         <div class="es-acoes" aria-label="Ações">
           <button class="btn mini" type="button" id="es-nova">Nova em branco</button>
           <button class="btn mini" type="button" id="es-duplicar">Duplicar</button>
-          <span class="es-arquivo btn mini" title="Arquivos estacao.js / .json de saidas/ (vários de uma vez) e as imagens da pasta img/">
+          <span class="es-arquivo btn mini" title="Arquivos estacao.js / .json de saidas/ (vários de uma vez) e as imagens da pasta img/; ou um PDF (ex.: Checklists Dominados) para a IA transcrever as páginas escolhidas">
             Importar arquivos…
-            <input type="file" id="es-importar" multiple accept=".js,.json,application/json,text/javascript,image/png,image/jpeg,image/webp,image/gif" aria-label="Importar arquivos de estação e imagens">
+            <input type="file" id="es-importar" multiple accept=".js,.json,.pdf,application/json,text/javascript,application/pdf,image/png,image/jpeg,image/webp,image/gif" aria-label="Importar arquivos de estação, imagens ou PDF">
           </span>
           <span class="es-arquivo btn mini" title="Escolha a pasta saidas/ (ou a pasta de uma estação): importa cada estacao.js com as imagens da sua pasta img/ (ignora versoes/)">
             Importar pasta…
@@ -123,6 +123,8 @@
 
   <!-- Ordem: configuração → revisão e diagramador (os do visualizador local) → núcleo do estúdio
        → App (antes do editor) → gravação online → editor (o do visualizador local) → importar → IA.
+       O pdf-lib (recorte de PDF no navegador) NÃO é listado: estudio-importar.js o carrega sob
+       demanda, só quando um PDF é escolhido (CDN fixo com SRI; liberado na CSP do montar-casca.sh).
        estudio-demo.js NÃO é listado: só é carregado com ?demo=1 no computador local, e o
        montar-casca.sh o exclui da publicação. -->
   <script src="js/config.js"></script>

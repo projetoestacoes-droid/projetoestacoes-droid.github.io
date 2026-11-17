@@ -54,7 +54,7 @@ body.es-bloqueado .barra, body.es-bloqueado .lateral, body.es-bloqueado .area-do
 .selo-ui.es-origem-nova, .selo-ui.es-origem-duplicada { color: #2F5DA8; background: #E3ECFA; border-color: #BCD0F0; }
 .selo-ui.es-publicada { color: #1E6B35; background: #fff; border-color: #A9DBB7; }
 
-/* ---------- Aba "Gerar com IA" ---------- */
+/* ---------- Aba "IA: gerar e importar" ---------- */
 .es-painel-ia .es-intro-ia { margin: 0 0 10px; }
 .es-aviso-ia {
   border: 1px solid #F0C79A; background: #FFF6E5; color: #6B4600; border-radius: 10px; padding: 9px 11px; margin-bottom: 12px;
@@ -66,6 +66,28 @@ body.es-bloqueado .barra, body.es-bloqueado .lateral, body.es-bloqueado .area-do
 .es-pedidos .tit { font-weight: 600; font-size: 13px; }
 .es-pedidos .meta { display: flex; gap: 4px; flex-wrap: wrap; }
 .es-pedidos li.vazio { font-size: 12.5px; color: var(--ui-suave); }
+.es-pedidos .tit { overflow-wrap: anywhere; }
+.selo-ui.es-tipo-importar { color: #1F5E63; background: #E2F4F4; border-color: #B5DEDF; }
+.selo-ui.es-tipo-gerar { color: #5B3E8F; background: #EFE8FA; border-color: #CDBDEB; }
+
+/* ---------- Importar PDF com IA (diálogo) ---------- */
+.es-pdf-cab { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; margin-bottom: 12px; }
+.es-pdf-nome { overflow-wrap: anywhere; }
+.es-form-pdf { margin-bottom: 8px; }
+.es-form-pdf .es-pdf-campo { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.es-form-pdf textarea {
+  width: 100%; border: 1px solid var(--ui-borda); border-radius: 8px; padding: 7px 9px; font: inherit; font-size: 14px; font-weight: 400; background: #fff; resize: vertical;
+}
+.es-form-pdf input[aria-invalid="true"] { border-color: var(--ui-erro); }
+.es-pdf-sel { margin-top: -4px; font-size: 12px; line-height: 1.4; }
+.es-pdf-sel.erro { color: var(--ui-erro); }
+.es-pdf-sel.aviso { color: #8A5A00; }
+.es-pdf-dica { margin: 0 0 10px; }
+.es-pdf-estado { font-size: 12.5px; line-height: 1.45; margin-bottom: 12px; overflow-wrap: anywhere; }
+.es-pdf-estado:empty { display: none; }
+.es-pdf-estado.ok { color: #1E6B35; }
+.es-pdf-estado.erro { color: var(--ui-erro); }
+.es-pdf-estado.aviso { color: #8A5A00; }
 
 /* ---------- Faixa de versão antiga ---------- */
 .es-banner {
