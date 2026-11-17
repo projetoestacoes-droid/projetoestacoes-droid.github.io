@@ -6,7 +6,7 @@
  * troca a fonte das estações: em vez de catálogos no disco, o banco do site
  * (RPCs estudio_* — ver online/supabase/API.md), e acrescenta as ações do
  * estúdio: nova em branco, duplicar, imagens, histórico de versões (ver e
- * restaurar), arquivar, baixar .js, recarregar e publicar para aplicação.
+ * restaurar), arquivar, apagar de vez, baixar .js, recarregar e publicar para aplicação.
  *
  * window.App = { STATUS, atual, renderizar, montarLista, atualizarRevisao,
  *   somaChecklist, nomeBanca, mostrarAba, estacaoPorId, selecionar,
@@ -163,7 +163,7 @@
         aprovada ? "Publicar esta estação (versão salva no estúdio) para a área de aplicação." :
         "Só estações com status “Aprovada”: Editar › Status › Aprovada › Salvar.";
     }
-    ["es-duplicar", "es-historico", "es-baixar", "es-arquivar"].forEach(function (id) { var b = $(id); if (b) b.disabled = !x; });
+    ["es-duplicar", "es-historico", "es-baixar", "es-arquivar", "es-excluir"].forEach(function (id) { var b = $(id); if (b) b.disabled = !x; });
     var ri = $("es-imagens-rot"); if (ri) ri.classList.toggle("es-desab", !x);
     var ii = $("es-imagens"); if (ii) ii.disabled = !x;
     var ba = $("es-arquivar");
@@ -816,6 +816,83 @@
         });
     }).catch(function (e) { msg("Não foi possível arquivar: " + ui.textoErro(e), "erro"); });
   }
+
+  /* ---------------- Apagar de vez (migração 009) ----------------
+     estudio_excluir apaga a estação e TODO o histórico numa transação só (sem lixeira); depois a tela
+     apaga as imagens do prefixo <uuid>/ no bucket "estudio". A cópia já publicada para aplicação fica. */
+  function semEspacosNasPontas(s) { return String(s == null ? "" : s).replace(/^ +| +$/g, ""); }
+  /* mesma comparação do servidor: título sem espaços nas pontas; estação sem título → o "id" do JSON */
+  function textoConfirmacao(x) {
+    var t = x.dados && typeof x.dados.titulo === "string" ? semEspacosNasPontas(x.dados.titulo) : "";
+    return t || semEspacosNasPontas((x.dados && x.dados.id) || (x.linha && x.linha.estacao_id) || "");
+  }
+  function fecharApagada(x) {
+    estado.entradas = estado.entradas.filter(function (e) { return e !== x; });
+    delete estado.urls[x.id];
+    if (estado.atual === x.chave) {
+      estado.atual = null;
+      estado.vista = null;
+      mostrarBanner(null);
+      history.replaceState(null, "", location.pathname + location.search);
+      document.title = "Estações · Estúdio";
+      document.dispatchEvent(new CustomEvent("estacao-selecionada", { detail: { chave: null } }));  // o editor encerra a sessão
+    }
+  }
+  function excluir() {
+    var x = atual(); if (!x) return;
+    return exigirSemPendencias("apagar a estação").then(function (ok) {
+      if (!ok) return;
+      var ed = editor();
+      return Promise.resolve(ed && ed.ativo && ed.ativo() ? ed.desligar() : true).then(function (desligou) {
+        if (desligou === false) return;
+        return E.api.versoes(x.id).then(function (vs) { return vs.length; }, function () { return x.versao; }).then(function (nVersoes) {
+          var esperado = textoConfirmacao(x);
+          var publicada = !!(x.linha && x.linha.publicada_versao != null);
+          var enviadas = x.linha && Array.isArray(x.linha.imagens_enviadas) ? x.linha.imagens_enviadas.length : null;
+          var campo = el("input"); campo.type = "text"; campo.autocomplete = "off"; campo.spellcheck = false;
+          var conteudo = [
+            el("p", null, ["Remove a estação, ", el("b", null, (nVersoes || 0) + (nVersoes === 1 ? " versão" : " versões") + " do histórico"),
+              " e " + (enviadas == null ? "as imagens enviadas a ela" : enviadas === 1 ? "1 imagem enviada a ela" : enviadas + " imagens enviadas a ela") + " no estúdio. ",
+              el("b", null, "Não dá para desfazer."), " Para só tirar da lista, use “Arquivar”."]),
+            el("p", "es-excluir-baixar", ["Recomendado: baixe uma cópia antes. ", ui.botao("Baixar .js", "mini", function () { baixar(); })]),
+            publicada ? el("p", "es-excluir-aviso", "Esta estação foi publicada para aplicação (versão " + x.linha.publicada_versao + "). A cópia publicada continua na área de aplicação (sessões e notas dependem dela); só a estação do estúdio é apagada.") : null,
+            el("div", "es-form-dialogo", el("label", null, [el("span", null, ["Digite o título para confirmar: ", el("span", "es-excluir-alvo", esperado)]), campo]))
+          ];
+          var bApagar = null;
+          var confere = function () { return !!esperado && semEspacosNasPontas(campo.value) === esperado; };
+          return ui.dialogo("Apagar de vez “" + esperado + "”?", conteudo, [
+            { rotulo: "Cancelar", valor: null },
+            { rotulo: "Apagar de vez", valor: function () { return confere() ? campo.value : null; }, perigo: true }
+          ], { aoAbrir: function (dlg) {
+            bApagar = dlg.querySelector(".ed-dialogo-acoes .perigo");
+            if (bApagar) bApagar.disabled = true;
+            campo.addEventListener("input", function () { if (bApagar) bApagar.disabled = !confere(); });
+            campo.addEventListener("keydown", function (ev) { if (ev.key === "Enter" && confere() && bApagar) { ev.preventDefault(); bApagar.click(); } });
+          } }).then(function (confirmacao) {
+            if (confirmacao == null) return;
+            msg("Apagando…");
+            return E.api.excluir(x.id, confirmacao).then(function (r) {
+              r = r || {};
+              var imgs = Array.isArray(r.imagens) ? r.imagens : imagensDoObjeto(x.dados).map(function (a) { return x.id + "/" + a; });
+              return E.arm.remover(E.arm.ESTUDIO, imgs).then(function (rem) {
+                fecharApagada(x);
+                return recarregarLista().catch(function (e) { console.warn(e); }).then(renderizar).then(function () {
+                  var nv = r.versoes_apagadas != null ? r.versoes_apagadas : nVersoes;
+                  var t = "Estação apagada (" + nv + (nv === 1 ? " versão" : " versões") + " do histórico" +
+                    (rem.removidos.length ? "; " + rem.removidos.length + " imagem(ns)" : "") + ")." +
+                    (r.publicada ? " A cópia publicada para aplicação continua." : "") +
+                    (rem.falhas.length ? " Estas imagens ficaram no Storage (bucket “estudio”; apague pelo painel do Supabase): " +
+                      rem.falhas.map(function (c) { return c.replace(/^[^/]+\//, ""); }).join(", ") + "." : "");
+                  msg(t, rem.falhas.length ? "erro" : "ok");
+                  ui.toast("Estação apagada.", "ok");
+                });
+              });
+            });
+          });
+        });
+      });
+    }).catch(function (e) { msg("Não foi possível apagar: " + ui.textoErro(e), "erro"); });
+  }
   function baixar() {
     var x = atual(); if (!x) return;
     try { window.SalvarEstacao.baixar(x); msg("estacao.js baixado (conteúdo que está na tela).", "ok"); } catch (e) { msg("Não foi possível baixar: " + e.message, "erro"); }
@@ -909,6 +986,7 @@
     $("es-baixar").addEventListener("click", baixar);
     $("es-recarregar").addEventListener("click", recarregar);
     $("es-arquivar").addEventListener("click", arquivar);
+    $("es-excluir").addEventListener("click", excluir);
     $("es-imagens").addEventListener("change", function () { var fs = this.files; var inp = this; enviarImagens(fs).then(function () { inp.value = ""; }); });
     if (document.fonts && document.fonts.addEventListener) {
       var t = null;

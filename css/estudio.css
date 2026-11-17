@@ -157,3 +157,12 @@ body.es-com-demo .lista, body.es-com-demo .area-doc, body.es-com-demo .painel-re
   body.es-bloqueado .area-doc { visibility: visible; }
   body.es-com-demo .area-doc { padding-bottom: 0 !important; }
 }
+
+/* ---------- Apagar de vez (migração 009) ---------- */
+.es-excluir-baixar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.es-excluir-aviso {
+  border: 1px solid #F0C79A; background: #FFF6E5; color: #6B4600; border-radius: 10px; padding: 8px 10px;
+  font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere;
+}
+.es-excluir-alvo { font-weight: 700; color: var(--ui-erro); overflow-wrap: anywhere; user-select: all; }
+dialog.es-dialogo .btn.perigo:disabled { opacity: .45; cursor: not-allowed; }

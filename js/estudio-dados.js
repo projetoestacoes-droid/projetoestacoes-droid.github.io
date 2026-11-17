@@ -168,17 +168,25 @@
     status_invalido: "Status inválido (rascunho, em-revisao ou aprovada).",
     estacao_nao_e_objeto: "O conteúdo não é um objeto de estação.",
     estacao_arquivada: "A estação está arquivada: desarquive antes de publicar.",
+    confirmacao_invalida: "O texto digitado não confere com o título da estação. Nada foi apagado.",
     pedido_inexistente: "Pedido inexistente.",
     tipo_invalido: "Tipo de pedido inválido (gerar ou importar).",
     paginas_invalidas: "Páginas inválidas (use, por exemplo, 2-6 ou 2,4-5).",
     pdf_obrigatorio: "O pedido de importação precisa do PDF recortado.",
     arquivo_original_invalido: "Nome do PDF original inválido (até 300 caracteres).",
+    executor_invalido: "Escolha quem gera: Claude Code ou API.",
+    pedido_em_andamento: "Só dá para trocar quem gera um pedido aguardando ou com erro.",
     funcao_inexistente: "Função do servidor não encontrada: a migração 004_estudio.sql ainda não foi aplicada no Supabase."
   };
   function textoErro(e) {
     if (!e) return "Erro desconhecido.";
     var m = String(e.message || e), cod = e.code || "";
-    if (cod === "PGRST202" || /Could not find the function|rpc_inexistente/i.test(m)) return ERROS.funcao_inexistente + " (" + (e.rpc || m) + ")";
+    if (cod === "PGRST202" || /Could not find the function|rpc_inexistente/i.test(m)) {
+      var r = String(e.rpc || m);
+      var mig = /estudio_excluir/.test(r) ? "009_excluir_estacao.sql" : /claude_|gerar_definir_executor/.test(r) ? "010_pedidos_claude_code.sql" :
+        /estudio_soft_skills_sugestoes/.test(r) ? "008_soft_skills_sugestoes.sql" : "004_estudio.sql";
+      return ERROS.funcao_inexistente.replace("004_estudio.sql", mig) + " (" + r + ")";
+    }
     if (ERROS[cod]) return ERROS[cod];
     var chave = Object.keys(ERROS).filter(function (k) { return m.indexOf(k) >= 0; })[0];
     return chave ? ERROS[chave] : m;
@@ -224,6 +232,9 @@
     versoes: function (id) { return rpc("estudio_versoes", { p_id: id }).then(lista); },
     obterVersao: function (id, versao) { return rpc("estudio_obter_versao", { p_id: id, p_versao: versao }).then(umObjeto); },
     arquivar: function (id, arquivada) { return rpc("estudio_arquivar", { p_id: id, p_arquivada: !!arquivada }); },
+    /* Apagar de vez (migração 009): estação + todo o histórico. Devolve {id, titulo, estacao_id, versoes_apagadas,
+       publicada, publicacoes, prefixo_imagens, imagens}; as imagens do bucket "estudio" a tela apaga depois (arm.remover). */
+    excluir: function (id, confirmacao) { return rpc("estudio_excluir", { p_id: id, p_confirmacao: confirmacao }).then(umObjeto); },
     duplicar: function (id) { return rpc("estudio_duplicar", { p_id: id }).then(umObjeto); },
     publicar: function (id) { return rpc("estudio_publicar", { p_id: id }).then(umObjeto); },
     confirmarPublicacao: function (pubId) { return rpc("confirmar_publicacao", { p_id: pubId }).then(umObjeto); },
@@ -231,6 +242,8 @@
     listarPedidos: function () { return rpc("gerar_listar_pedidos", {}).then(lista); },
     obterPedido: function (id) { return rpc("gerar_obter_pedido", { p_id: id }).then(umObjeto); },
     cancelarPedido: function (id) { return rpc("gerar_cancelar_pedido", { p_id: id }); },
+    /* Quem gera o pedido parado (migração 010): "claude_code" | "api"; só em "aguardando" ou "erro" */
+    definirExecutor: function (id, executor) { return rpc("gerar_definir_executor", { p_id: id, p_executor: executor }).then(umObjeto); },
     /* Soft skills já cobradas, por banca (migração 008): { "einstein": [textos], "sirio-libanes": [textos] }.
        A lista mora só no banco: nada dela vai escrito nos arquivos da casca. */
     softSkillsSugestoes: function () { return rpc("estudio_soft_skills_sugestoes", {}).then(umObjeto); }
@@ -280,6 +293,18 @@
         var tipo = blob && blob.type ? blob.type : tipoImagem(deCaminho);
         return arm.enviar(paraBucket, paraCaminho, blob, { tipo: tipo, substituir: op && op.substituir });
       });
+    },
+    /* apaga caminhos de um bucket → { removidos: [caminhos], falhas: [caminhos] }
+       (o Storage não acusa erro quando a política recusa: o que não voltar na resposta conta como falha) */
+    remover: function (nomeBucket, caminhos) {
+      caminhos = (caminhos || []).filter(Boolean);
+      if (!caminhos.length) return Promise.resolve({ removidos: [], falhas: [] });
+      return Promise.resolve().then(function () { return bucket(nomeBucket).remove(caminhos); }).then(function (r) {
+        if (r && r.error) return { removidos: [], falhas: caminhos.slice() };
+        var foram = {};
+        ((r && r.data) || []).forEach(function (o) { if (o && o.name) foram[o.name] = true; });
+        return { removidos: caminhos.filter(function (c) { return foram[c]; }), falhas: caminhos.filter(function (c) { return !foram[c]; }) };
+      }, function () { return { removidos: [], falhas: caminhos.slice() }; });
     }
   };
   var TIPOS = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", pdf: "application/pdf", txt: "text/plain", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };

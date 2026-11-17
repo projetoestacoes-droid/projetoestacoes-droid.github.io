@@ -12,6 +12,14 @@
  *   o link "Abrir no estúdio".
  * Sem a chave ANTHROPIC_API_KEY no Supabase, a função responde 503 e a aba avisa.
  *
+ * "Quem gera" (migração 010): "Claude Code no meu computador" (PADRÃO, sem custo de API) ou
+ * "API da Anthropic". Com o Claude Code, o pedido é criado (referências no bucket, como antes)
+ * com executor "claude_code" e a função NÃO é chamada: o pedido fica "Aguardando o Claude Code"
+ * até o Alexandre abrir o Claude Code na pasta do projeto e dizer "processar pedidos pendentes"
+ * (ver o guia do Claude Code no repositório privado). Pedidos
+ * parados ("aguardando"/"erro") trocam de executor pela RPC gerar_definir_executor — é assim que
+ * um pedido de importar PDF (criado pela API) vai para o Claude Code ("Gerar pelo Claude Code").
+ *
  * A lista mostra também os pedidos tipo "importar" (PDF transcrito pela IA, criados
  * em "Importar arquivos…" por estudio-importar.js): arquivo, páginas e um botão
  * "Abrir no estúdio" para cada estação criada (estacao_ids).
@@ -39,6 +47,21 @@
     concluido: ["Concluído", "st-gerada"], erro: ["Erro", "st-erro"], cancelado: ["Cancelado", ""]
   };
   var AVISO_SEM_CHAVE = "A geração por IA ainda não está ativa: falta colocar a chave da API no Supabase (ver guia).";
+  var EXEC_CC = "claude_code", EXEC_API = "api";
+  var CHAVE_EXECUTOR = "estudio-ia-executor";   // lembra a última escolha neste navegador (só conveniência)
+  var DICA_CC = "Abra o Claude Code na pasta do projeto e diga: processar pedidos pendentes";
+  // Rótulo do estado conforme quem gera (mesmos estados do banco; o executor muda só o texto)
+  function rotuloStatus(p) {
+    if (p.executor === EXEC_CC) {
+      if (p.status === "aguardando") return ["Aguardando o Claude Code", "st-aguardando"];
+      if (p.status === "processando") return p.reserva_expirada ? ["Claude Code: reserva vencida", "st-aguardando"] : ["Com o Claude Code", "st-em-criacao"];
+    }
+    return STATUS[p.status] || [p.status || "?", ""];
+  }
+  function executorSalvo() {
+    try { return localStorage.getItem(CHAVE_EXECUTOR) === EXEC_API ? EXEC_API : EXEC_CC; } catch (e) { return EXEC_CC; }
+  }
+  function executorEscolhido() { return f.execApi && f.execApi.checked ? EXEC_API : EXEC_CC; }
 
   var f = {};            // controles do formulário
   var arquivos = { tec: [], soft: [] };
@@ -123,9 +146,25 @@
     f.aviso.setAttribute("role", "alert");
     f.aviso.hidden = true;
     painel.appendChild(f.aviso);
-    painel.appendChild(el("p", "es-sutil es-intro-ia", "Pedido de estação gerada por IA (modelo Claude Opus 5.5, em lote). A estação volta como rascunho no estúdio, para editar, revisar e aprovar. Para transcrever um PDF (ex.: Checklists Dominados), use “Importar arquivos…” na aba Estações: o pedido aparece nesta lista."));
+    painel.appendChild(el("p", "es-sutil es-intro-ia", "Pedido de estação nova. Quem gera pode ser o Claude Code no seu computador (sem custo de API, quando você pedir) ou a API da Anthropic (automático, pago). A estação volta sempre como rascunho no estúdio, para editar, revisar e aprovar. Para transcrever um PDF (ex.: Checklists Dominados), use “Importar arquivos…” na aba Estações: o pedido aparece nesta lista e pode ir para o Claude Code pelo botão “Gerar pelo Claude Code”."));
 
     var form = el("form", "form-pedido"); form.noValidate = true;
+    // Quem gera (padrão: Claude Code)
+    var quem = el("fieldset", "es-quem-gera", el("legend", null, "Quem gera"));
+    function radio(id, valor, rotulo, dica) {
+      var r = el("input"); r.type = "radio"; r.name = "ia-executor"; r.id = id; r.value = valor;
+      r.addEventListener("change", atualizarExecutor);
+      var l = el("label", null, [r, " ", el("b", null, rotulo)]); l.htmlFor = id;
+      return { r: r, bloco: el("div", "campo", [l, el("p", "dica", dica)]) };
+    }
+    var rc = radio("ia-exec-cc", EXEC_CC, "Claude Code no meu computador (sem custo de API)",
+      "O pedido fica “Aguardando o Claude Code”. " + DICA_CC + ".");
+    var ra = radio("ia-exec-api", EXEC_API, "API da Anthropic (automático)",
+      "Envia na hora para a IA (pago; exige a chave da API no Supabase).");
+    f.execCc = rc.r; f.execApi = ra.r;
+    (executorSalvo() === EXEC_API ? ra.r : rc.r).checked = true;
+    quem.appendChild(rc.bloco); quem.appendChild(ra.bloco);
+    form.appendChild(quem);
     f.banca = el("select"); f.banca.id = "ia-banca";
     var b0 = el("option", null, "Escolha a banca…"); b0.value = ""; f.banca.appendChild(b0);
     BANCAS.forEach(function (b) { var o = el("option", null, b[1]); o.value = b[0]; f.banca.appendChild(o); });
@@ -154,7 +193,7 @@
 
     f.obs = el("textarea"); f.obs.id = "ia-obs"; f.obs.rows = 2;
     form.appendChild(campo(["Observações ", opc("(opcional)")], f.obs));
-    f.enviar = el("button", "btn primario", "Gerar estação"); f.enviar.type = "submit";
+    f.enviar = el("button", "btn primario", "Criar pedido para o Claude Code"); f.enviar.type = "submit";
     form.appendChild(el("div", "acoes-form", f.enviar));
     f.msg = el("div", "msg-form"); f.msg.setAttribute("role", "status"); f.msg.setAttribute("aria-live", "polite");
     form.appendChild(f.msg);
@@ -165,6 +204,12 @@
     f.lista = el("ul", "es-pedidos"); f.lista.id = "lista-pedidos-ia";
     painel.appendChild(el("div", "pedidos", [cab, f.lista]));
     atualizarBanca();
+    atualizarExecutor();
+  }
+  function atualizarExecutor() {
+    var ex = executorEscolhido();
+    f.enviar.textContent = ex === EXEC_CC ? "Criar pedido para o Claude Code" : "Gerar estação (API)";
+    try { localStorage.setItem(CHAVE_EXECUTOR, ex); } catch (e) { /* sem armazenamento local: tudo bem */ }
   }
 
   /* ---------------- envio ---------------- */
@@ -186,6 +231,7 @@
     if (!a) { mensagem("Escolha a grande área.", "erro"); f.area.focus(); return; }
     if (!tema) { mensagem("Informe o tema técnico.", "erro"); f.tema.focus(); return; }
     var id = ui.uuid();
+    var executor = executorEscolhido();
     var soft = !!COM_SOFT[b];
     if (somaRefs(soft) > MAX_TOTAL) { mensagem(msgLimite(somaRefs(soft)), "erro"); return; }
     f.enviar.disabled = true;
@@ -200,13 +246,26 @@
       return E.api.criarPedido({
         id: id, banca: b, area: a, dia: b === "einstein" ? f.dia.value : null, tema: tema,
         ideia: f.ideia.value.trim() || null, foco_soft_skills: soft ? (f.foco.value.trim() || null) : null,
-        observacoes: f.obs.value.trim() || null, referencias_tecnicas: refsTec, referencias_soft: refsSoft
+        observacoes: f.obs.value.trim() || null, referencias_tecnicas: refsTec, referencias_soft: refsSoft,
+        executor: executor
       });
     }).then(function (r) {
       var pid = (r && r.id) || id;
+      if (executor === EXEC_CC && !(r && r.executor === EXEC_CC)) {
+        // banco sem a migração 010: o servidor ignorou "executor" e o pedido nasceu da API
+        limparForm();
+        mensagem("Pedido criado, mas para a API: a migração 010 (Claude Code) ainda não foi aplicada no Supabase. Ele fica “Aguardando envio”.", "erro");
+        return { pronto: true };
+      }
+      if (executor === EXEC_CC) {   // o Claude Code busca o pedido depois: a função não é chamada
+        limparForm();
+        mensagem("Pedido criado: aguardando o Claude Code. " + DICA_CC + ".", "ok");
+        return { pronto: true };
+      }
       mensagem("Pedido criado. Enviando à IA…");
       return E.gerar("enviar", pid).then(function (g) { return { pid: pid, g: g }; });
     }).then(function (x) {
+      if (x.pronto) return carregarPedidos();   // Claude Code: nada a enviar agora
       limparForm();
       tratarResposta(x.g, "enviar");
       if (x.g.ok) mensagem("Pedido enviado. A geração em lote costuma levar de alguns minutos a 1 hora; use “Verificar agora” na lista.", "ok");
@@ -245,6 +304,12 @@
     if (!ids.length && p && p.estacao_id) ids = [p.estacao_id];
     return ids;
   }
+  // estação criada pelo pedido e depois excluída de vez no Estúdio (009): o pedido guarda o id, mas o
+  // servidor devolve o item sem título e sem "arquivada" (a linha não existe mais)
+  function excluida(p, id) {
+    var x = Array.isArray(p.estacoes) ? p.estacoes.filter(function (e) { return e && e.id === id; })[0] : null;
+    return !!x && x.arquivada == null && x.titulo == null;
+  }
   function tituloDe(id) {
     var x = window.App && window.App.entradaPorId ? window.App.entradaPorId(id) : null;
     return x && x.linha && x.linha.titulo ? String(x.linha.titulo) : "";
@@ -263,12 +328,14 @@
   function itemPedido(p) {
     var imp = p.tipo === "importar";
     var li = el("li", "pedido" + (imp ? " es-pedido-importar" : ""));
+    var cc = p.executor === EXEC_CC;
     li.appendChild(el("span", "tit", imp ? String(p.arquivo_original || "PDF importado") : String(p.tema || "(sem tema)")));
-    var st = STATUS[p.status] || [p.status || "?", ""];
+    var st = rotuloStatus(p);
     li.appendChild(el("span", "meta", [
       el("span", "selo-ui " + (imp ? "es-tipo-importar" : "es-tipo-gerar"), imp ? "Importar PDF" : "Gerar"),
       el("span", "selo-ui banca", imp && !p.banca ? "Banca: detectar" : nomeBanca(p.banca)),
       el("span", "selo-ui " + st[1], st[0]),
+      el("span", "selo-ui", cc ? "Claude Code" : "API"),
       imp ? el("span", "selo-ui", "Páginas " + (p.paginas || "todas")) : null,
       !imp && p.area ? el("span", "selo-ui", p.area + (p.dia ? " · " + p.dia : "")) : null
     ]));
@@ -284,13 +351,31 @@
     li.appendChild(el("span", "es-sutil es-peq", info.join(" · ")));
     if (p.estacao_titulo && ids.length <= 1) li.appendChild(el("span", "es-sutil es-peq", "Estação: " + p.estacao_titulo));
     if (p.erro) li.appendChild(el("span", "es-aviso-erro es-peq", String(p.erro)));
+    if (cc && p.status === "aguardando") li.appendChild(el("span", "es-sutil es-peq", DICA_CC + "."));
+    if (cc && p.status === "processando") li.appendChild(el("span", "es-sutil es-peq", (p.reserva_expirada
+      ? "A sessão do Claude Code que pegou este pedido parou há mais de 3 horas; ele volta para a fila na próxima vez que você pedir “processar pedidos pendentes”."
+      : "O Claude Code está gerando" + (p.reservado_por_nome ? " (sessão de " + p.reservado_por_nome + ")" : "") + (p.reservado_em ? " desde " + ui.fmtData(p.reservado_em) : "") + ". A estação aparece aqui como rascunho quando ele enviar.")));
     var acoes = el("div", "es-linha-botoes");
-    if (p.status === "aguardando" || p.status === "erro") acoes.appendChild(ui.botao(p.status === "erro" ? "Enviar de novo" : "Enviar", "mini", function () { acao(this, "enviar", p); }));
-    // "enviando"/"enviado" sem lote: "Verificar agora" destrava o envio interrompido (após 10 min) → "Enviar de novo"
-    if (p.status === "enviando" || p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Verificar agora", "mini primario", function () { acao(this, "verificar", p); }));
+    var parado = p.status === "aguardando" || p.status === "erro";
+    if (cc) {
+      if (p.status === "processando" && p.reserva_expirada) {
+        acoes.appendChild(ui.botao("Devolver à fila", "mini primario", function () { trocarExecutor(this, p, EXEC_CC); },
+          "A sessão do Claude Code parou no meio: o pedido volta a “Aguardando o Claude Code”"));
+        acoes.appendChild(ui.botao("Passar para a API", "mini", function () { trocarExecutor(this, p, EXEC_API); }));
+      }
+      if (p.status === "erro") acoes.appendChild(ui.botao("Tentar de novo pelo Claude Code", "mini primario", function () { trocarExecutor(this, p, EXEC_CC); }));
+      if (parado) acoes.appendChild(ui.botao("Passar para a API", "mini", function () { trocarExecutor(this, p, EXEC_API); }));
+    } else {
+      if (parado) acoes.appendChild(ui.botao(p.status === "erro" ? "Enviar de novo" : "Enviar", "mini", function () { acao(this, "enviar", p); }));
+      if (parado) acoes.appendChild(ui.botao("Gerar pelo Claude Code", "mini" + (semChave ? " primario" : ""), function () { trocarExecutor(this, p, EXEC_CC); },
+        "Tira o pedido da API e põe na fila do Claude Code no seu computador (sem custo de API)"));
+      // "enviando"/"enviado" sem lote: "Verificar agora" destrava o envio interrompido (após 10 min) → "Enviar de novo"
+      if (p.status === "enviando" || p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Verificar agora", "mini primario", function () { acao(this, "verificar", p); }));
+    }
     if (p.status === "concluido") ids.forEach(function (eid, i) {
       var tit = tituloDe(eid);
       var rot = ids.length > 1 ? "Abrir no estúdio (" + (i + 1) + "/" + ids.length + ")" : "Abrir no estúdio";
+      if (excluida(p, eid)) { acoes.appendChild(el("span", "es-sutil es-peq", (ids.length > 1 ? "Estação " + (i + 1) + ": " : "") + "estação excluída")); return; }
       acoes.appendChild(ui.botao(rot, "mini primario", function () { abrir(eid); }, tit ? "Abrir “" + tit + "”" : null));
     });
     if (p.status === "aguardando" || p.status === "enviando" || p.status === "enviado" || p.status === "processando") acoes.appendChild(ui.botao("Cancelar", "mini perigo", function () { cancelar(p); }));
@@ -307,6 +392,13 @@
       var antes = g.ok && qual === "verificar" && g.dados && g.dados.status === "concluido" && window.App ? window.App.recarregarLista() : Promise.resolve();
       return antes.catch(function () { /* a lista do estúdio recarrega depois */ }).then(function () { return carregarPedidos(); });
     }).then(function () { bt.disabled = false; bt.textContent = t; });
+  }
+  function trocarExecutor(bt, p, executor) {
+    bt.disabled = true;
+    E.api.definirExecutor(p.id, executor).then(function () {
+      ui.toast(executor === EXEC_CC ? "Pedido na fila do Claude Code. " + DICA_CC + "." : "Pedido passado para a API: use “Enviar”.", "ok");
+      return carregarPedidos();
+    }, function (e) { bt.disabled = false; ui.toast(ui.textoErro(e), "erro"); });
   }
   function abrir(estacaoId) {
     var App = window.App;
