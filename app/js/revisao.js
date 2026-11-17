@@ -695,6 +695,18 @@ var revisarEstacao = (function (raiz) {
         if (itens.length || num(total)) {
           add("aviso", S, "No HSL a seção Soft Skills é narrativa: os 100 pontos estão todos no checklist. Remova itens/total_esperado de soft_skills ou confirme o formato.", "SS-09");
         }
+        // SS-12: sem itens, o módulo online (D4b, privado.soft_itens) deriva domínios de soft skills
+        // dos critérios não técnicos com pontos: aparece um painel de 5 níveis e o total passa de 100.
+        if (!itens.length) {
+          var critP = arr(pega(e, "criterios")).filter(function (x) {
+            x = obj(x);
+            return num(x.pontos) && !vazio(x.dominio) && !/^competencias? tecnicas?$/.test(normaliza(x.dominio).trim());
+          });
+          if (critP.length) {
+            add("aviso", "Critérios de avaliação", "No HSL, " + critP.map(function (x) { return "\"" + str(obj(x).dominio) + "\" (" + fmt(obj(x).pontos) + ")"; }).join(", ") +
+              " tem pontos nos critérios e a estação tem seção Soft Skills: na aplicação online isso vira um painel de soft skills à parte e o total passa de 100. Tire os pontos dos critérios não técnicos (os 100 pontos ficam no checklist).", "SS-12");
+          }
+        }
       }
     }
 
