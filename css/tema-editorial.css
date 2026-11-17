@@ -236,18 +236,17 @@
   .adm input[type=text], .adm input[type=email], .adm input[type=date], .adm input[type=search],
   .adm input[type=number], .adm select, .adm textarea { border-radius: var(--ed-raio); }
   .adm-cartao, .adm-aviso, .adm-erro, .adm-ok, .adm-info, .adm-tabela-rol, .adm-ordem > li,
-  .adm-estacao-ao-vivo, .adm-previa, .adm-previa-cab, .adm pre.adm-json { border-radius: var(--ed-raio); }
+  .adm-estacao-ao-vivo, .adm-est-num-cartao, .adm-est-mud { border-radius: var(--ed-raio); }
   .adm-cartao.destaque { border-left: 3px solid var(--ed-texto); }
   .adm-tabela th { background: var(--ed-papel-2); color: var(--ed-texto); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; }
   .adm-tabela th, .adm-tabela td { padding: 10px 12px; border-bottom-color: var(--ed-papel-2); }
+  .adm-tabela th.adm-est-lin { background: transparent; font-size: inherit; letter-spacing: normal; text-transform: none; font-weight: 600; }
   .adm-tabela tbody tr { transition: background var(--ed-rapido); }
   .adm-tabela tbody tr:hover td { background: #FBFAF7; }
   .adm-tag { border-radius: var(--ed-raio); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; }
   .adm-chip { border-radius: var(--ed-raio); }
   .adm-ordem-cab strong, .adm-estacao-ao-vivo h4 { color: var(--ed-texto); }
   .adm-barra-prog { border-radius: 0; height: 6px; }
-  .adm-previa { border-color: var(--ed-texto); }
-  .adm-previa-cab { background: var(--ed-tinta); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
   .adm details > summary { color: var(--ed-texto); }
   .adm-modal-fundo { background: rgba(8, 10, 22, .66); }
   .adm-modal { border-radius: 4px; padding: 24px 26px; }

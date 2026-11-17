@@ -3,7 +3,8 @@
  * Registra Online.registrarTela('admin', {...}) (núcleo: online/js/nucleo.js).
  *
  * Abas: Usuários · Estações publicadas · Sessões · Acompanhamento ·
- *       Parâmetros de pontuação · Pré-visualizar como · Visualizador local
+ *       Parâmetros de pontuação · Estatísticas do histórico
+ *       (criar, editar, revisar e "Ver como…" por perfil: no Estúdio, estudio.html)
  *
  * Regras:
  * - Nenhum innerHTML com dados: todo texto entra por textContent.
@@ -51,7 +52,6 @@
     listarEstacoes: function (soProntas) { return rpc("listar_estacoes_publicadas", { p_apenas_prontas: !!soProntas }).then(lista); },
     publicar: function (conteudo) { return rpc("publicar_estacao", { p_conteudo: conteudo }); },
     confirmarPublicacao: function (id) { return rpc("confirmar_publicacao", { p_id: id }); },
-    previsualizar: function (pubId, papel) { return rpc("previsualizar_como", { p_estacao_publicada_id: pubId, p_papel: papel }); },
     // sessões
     listarSessoes: function () { return rpc("listar_sessoes").then(lista); },
     detalheSessao: function (id) { return rpc("detalhe_sessao", { p_id: id }); },
@@ -74,7 +74,9 @@
     // parâmetros
     listarParametros: function () { return rpc("listar_parametros").then(lista); },
     definirParametro: function (chave, valor) { return rpc("definir_parametro", { p_chave: chave, p_valor: valor }); },
-    recalcular: function (sessaoId) { return rpc("recalcular_notas", { p_sessao_id: sessaoId }); }
+    recalcular: function (sessaoId) { return rpc("recalcular_notas", { p_sessao_id: sessaoId }); },
+    // estatísticas da base histórica (migração 013; os dados ficam só no servidor, schema privado)
+    estatisticasHistorico: function () { return rpc("admin_estatisticas_historico", {}); }
   };
 
   /* ------------------------------------------------------------------
@@ -475,12 +477,11 @@
       ["sessoes", "Sessões", telaSessoes],
       ["acompanhamento", "Acompanhamento", telaAcompanhamento],
       ["parametros", "Parâmetros de pontuação", telaParametros],
-      ["previa", "Pré-visualizar como", telaPrevia],
-      ["local", "Visualizador local", telaLocal]
+      ["estatisticas", "Estatísticas do histórico", telaEstatisticas]
     ];
     var eu = (O().eu && O().eu()) || {};
     raiz.appendChild(h("h2", { txt: "Administração" }));
-    raiz.appendChild(h("p", { cls: "adm-sub", txt: (eu.nome ? eu.nome + " · " : "") + "Usuários, publicação, sessões, acompanhamento e notas. Criação, edição e revisão de estações continuam no visualizador local." }));
+    raiz.appendChild(h("p", { cls: "adm-sub", txt: (eu.nome ? eu.nome + " · " : "") + "Usuários, publicação, sessões, acompanhamento, notas e estatísticas do histórico. Criar, editar, revisar, aprovar e ver a estação como cada perfil (\u201cVer como…\u201d) ficam no Estúdio de estações." }));
     /* ACRÉSCIMO (16/11/2026): atalho para o Estúdio de estações (criar, editar, revisar, aprovar, publicar, imprimir e gerar com IA no site) */
     raiz.appendChild(h("p", null, h("a", { cls: "adm-btn", href: "estudio.html" + (O().demo ? "?demo=1" : ""), txt: "Estúdio de estações" }),
       h("span", { cls: "adm-sub", txt: " Criar, importar, editar, revisar, aprovar, publicar e imprimir estações no site; gerar estação com IA." })));
@@ -1394,95 +1395,417 @@
       return carregar();
     }
 
-    /* ================================================================
-     * PRÉ-VISUALIZAR COMO
-     * ================================================================ */
-    function telaPrevia(alvo, arg) {
-      var slE = h("select", { "aria-label": "Estação publicada" });
-      var slP = selectDe([["ator", "Ator / atriz"], ["aplicador", "Aplicador"], ["aluno", "Aluno"]], "ator", { "aria-label": "Perfil" });
-      var saida = h("div");
-      anexar(alvo, [
-        h("p", { txt: "Mostra exatamente o que o servidor entrega a cada perfil (filtro no servidor, previsualizar_como). Nada é escondido pelo navegador." }),
-        h("div", { cls: "adm-barra" }, campo("Estação publicada", slE), campo("Ver como", slP), botao("Ver", ver)),
-        saida
-      ]);
-      function ver() {
-        if (!slE.value) return;
-        var papel = slP.value;
-        var pubId = Number(slE.value);
-        limpar(saida).appendChild(carregando());
-        API.previsualizar(pubId, papel).then(function (d) {
-          limpar(saida);
-          d = d || {};
-          var titulo = (slE.options[slE.selectedIndex] || {}).text || "";
-          var caixa = h("div", { cls: "adm-previa" }, h("div", { cls: "adm-previa-cab", txt: "Como " + (papel === "ator" ? "ATOR / ATRIZ" : papel.toUpperCase()) + " vê — " + titulo }));
-          saida.appendChild(caixa);
-          if (papel === "aluno") {
-            [["antes", "Antes da liberação"], ["depois", "Depois da liberação (exemplo, sem nota real)"]].forEach(function (par) {
-              var r = d[par[0]] || (par[0] === "antes" && !d.antes ? d : {});
-              var linhas = [h("h4", { txt: par[1] }),
-                h("p", null, h("strong", { txt: r.estacao || "Estação N" }), " · ", r.situacao === "concluida" ? tag("finalizada", "Concluída") : tag("pendente", "Pendente"))];
-              if (r.titulo) linhas.push(h("p", null, h("strong", { txt: "Título: " }), r.titulo + (r.area ? " · " + r.area : "")));
-              if (r.liberada) {
-                linhas.push(h("p", null, h("strong", { txt: "Nota: " }), (r.nota_total === null || r.nota_total === undefined ? "(nota do aluno)" : fmtNum(r.nota_total)) + " / " + fmtNum(r.nota_maxima)));
-                (r.dominios || []).forEach(function (dm) { linhas.push(h("p", { cls: "adm-sub", txt: (dm.dominio || "Domínio") + ": " + (dm.nota === null || dm.nota === undefined ? "—" : fmtNum(dm.nota)) + " / " + fmtNum(dm.maximo) })); });
-                linhas.push(h("p", null, h("strong", { txt: "Feedback: " }), r.feedback || "—"));
-              } else linhas.push(h("p", { cls: "adm-sub", txt: "Sem título, área, conteúdo, nota nem feedback." }));
-              caixa.appendChild(h("div", { cls: "adm-cartao" }, linhas));
-            });
-          } else {
-            var c = d.conteudo || d;            // formato antigo: o próprio conteúdo filtrado
-            saida.insertBefore(h("p", { cls: "adm-sub", txt: "Campos do conteúdo entregues: " + (Object.keys(c).join(", ") || "—") + (d.tempo_minutos ? " · cronômetro: " + d.tempo_minutos + " min" : "") }), caixa);
-            if (O().renderFluxo) {
-              var alvoR = h("div");
-              caixa.appendChild(alvoR);
-              alvoR.appendChild(carregando());
-              // URLs assinadas só das imagens que vieram no conteúdo filtrado (o admin pode assinar qualquer uma)
-              var arqs = imagensDoObjeto(c);
-              Promise.all(arqs.map(function (a) {
-                return Promise.resolve(O().urlImagem ? O().urlImagem(pubId, a) : null).then(function (u) { return [a, u]; }, function () { return [a, null]; });
-              })).then(function (pares) {
-                var mapa = {};
-                pares.forEach(function (p) { if (p[1]) mapa[p[0]] = p[1]; });
-                return O().renderFluxo(alvoR, c, { imagens: mapa });
-              }).catch(function (e) { limpar(alvoR).appendChild(msg("erro", "Falha ao desenhar: " + textoErro(e))); });
-            } else caixa.appendChild(msg("aviso", "Renderizador indisponível; veja o JSON abaixo."));
-          }
-          saida.appendChild(h("details", null, h("summary", { txt: "JSON bruto recebido do servidor" }), h("pre", { cls: "adm-json", txt: JSON.stringify(d, null, 2) })));
-        }).catch(function (e) { limpar(saida).appendChild(msg("erro", textoErro(e))); });
-      }
-      return estacoes(true).then(function (l) {
-        if (!l.length) { slE.appendChild(h("option", { value: "", txt: "Nenhuma estação publicada" })); return; }
-        l.slice().sort(function (a, b) { return String(a.titulo).localeCompare(String(b.titulo), "pt-BR") || b.versao - a.versao; }).forEach(function (e) {
-          slE.appendChild(h("option", { value: e.id, txt: e.titulo + " · " + nomeBanca(e.banca) + " · v" + e.versao }));
-        });
-        if (arg && arg.pubId) { slE.value = String(arg.pubId); ver(); }
-      }).catch(function (e) { saida.appendChild(msg("erro", textoErro(e))); });
-    }
-
-    /* ================================================================
-     * VISUALIZADOR LOCAL (atalho documentado)
-     * ================================================================ */
-    function telaLocal(alvo) {
-      var local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.protocol === "file:";
-      anexar(alvo, [
-        h("div", { cls: "adm-cartao destaque" },
-          h("h3", { txt: "Criação, edição e revisão: no visualizador local", style: "margin-top:0" }),
-          h("p", { txt: "A área online só aplica e avalia. Criar, editar, revisar, aprovar e imprimir estações continua no visualizador local, no computador do administrador, que não vai para a internet." }),
-          h("ol", null,
-            h("li", { txt: "Abra o visualizador: duplo clique em \"Abrir Estações no Chrome.command\" (na pasta do projeto) ou abra app/index.html no Chrome." }),
-            h("li", { txt: "Edite e revise a estação; quando estiver pronta, mude o status para \"aprovada\" e salve (o salvar também normaliza o arquivo)." }),
-            h("li", { txt: "Volte aqui em \"Estações publicadas\" › Publicar estação e escolha a pasta saidas/<id>/." })),
-          local ? h("p", null, h("a", { cls: "adm-btn sec", href: "../app/index.html", target: "_blank", rel: "noopener", txt: "Abrir o visualizador local (app/index.html)" })) :
-            h("p", { cls: "adm-sub", txt: "Este atalho só funciona no computador do administrador (servidor local); na área publicada o visualizador não existe de propósito." }))
-      ]);
-    }
-
     // Aba inicial: a do endereço (#admin/<aba>) ou Usuários
     var m = /#admin\/([a-z]+)/.exec(location.hash || "");
     complementoDemo().then(function () { irPara(m && abas.some(function (a) { return a[0] === m[1]; }) ? m[1] : "usuarios"); });
 
     return { desmontar: function () { pararTimers(); limpar(container); } };
+  }
+
+  /* ==================================================================
+   * ESTATÍSTICAS DO HISTÓRICO (aba "estatisticas"; migração 013)
+   * Os dados (base histórica das 4 bancas) ficam SÓ no servidor, no schema
+   * privado; chegam pela RPC admin_estatisticas_historico (só administrador).
+   * Nada de dado da base fica neste arquivo (a casca é pública): aqui só há
+   * rótulos das etiquetas e a lógica de contagem e desenho.
+   * Gráficos só em HTML/CSS (barras com width %) e tabelas: a CSP não aceita
+   * bibliotecas externas. Todo número aparece em texto, não só em cor.
+   * ================================================================== */
+  /* Rótulos legíveis das etiquetas (um mapa só): bancas, áreas, assuntos, soft skills, tipos, impacto, detalhe */
+  var ROTULOS_EST = {
+    "einstein": "Einstein", "sirio-libanes": "Sírio-Libanês", "usp-ribeirao": "USP Ribeirão Preto", "unifesp": "Unifesp",
+    "unifesp|R1": "Unifesp R1", "unifesp|R+": "Unifesp R+", "multimidia": "Multimídia",
+    "CM": "Clínica médica", "CG": "Cirurgia geral", "GO": "Ginecologia e obstetrícia", "Ped": "Pediatria",
+    "Prev": "Medicina preventiva", "Proc": "Procedimentos", "Multi": "Multimídia",
+    "cardiovascular": "Cardiovascular", "respiratorio": "Respiratório", "gastro-hepato": "Gastro e hepatologia",
+    "nefro-uro": "Nefrologia e urologia", "endocrino-metabolico": "Endócrino e metabólico", "infectologia": "Infectologia",
+    "ist-sexualidade": "IST e sexualidade", "neurologia": "Neurologia", "saude-mental": "Saúde mental",
+    "hemato-onco": "Hematologia e oncologia", "reumato-osteo": "Reumatologia e osteoarticular", "dermatologia": "Dermatologia",
+    "ginecologia": "Ginecologia", "obstetricia": "Obstetrícia", "mama": "Mama", "neonatologia": "Neonatologia",
+    "puericultura-vacinacao": "Puericultura e vacinação", "pediatria-aguda": "Pediatria aguda", "trauma": "Trauma",
+    "abdome-agudo-cirurgico": "Abdome agudo cirúrgico", "urgencia-reanimacao": "Urgência e reanimação",
+    "procedimento-habilidade": "Procedimentos e habilidades", "aps-preventiva": "APS e preventiva", "violencia": "Violência",
+    "cuidados-paliativos": "Cuidados paliativos", "geriatria": "Geriatria", "etica-legal": "Ética e aspectos legais", "outro": "Outro",
+    "mas-noticias": "Más notícias", "erro-medico": "Erro médico", "recusa-adesao": "Recusa e adesão",
+    "familiar-paciente-dificil": "Familiar ou paciente difícil", "equipe-lideranca": "Equipe e liderança",
+    "comunicacao-equipe": "Comunicação com a equipe", "ensino-feedback": "Ensino e feedback", "sigilo": "Sigilo",
+    "autonomia-decisao": "Autonomia e decisão compartilhada", "sexualidade-diversidade": "Sexualidade e diversidade",
+    "violencia-vulnerabilidade": "Violência e vulnerabilidade", "paliativos-fim-de-vida": "Paliativos e fim de vida",
+    "etica-colegas": "Ética com colegas", "acolhimento-emocao": "Acolhimento de emoções", "centrado-pessoa": "Cuidado centrado na pessoa",
+    "educacao-risco": "Educação e comunicação de risco",
+    "formato-prova": "Formato da prova", "pontuacao": "Pontuação", "soft-skills": "Soft skills", "documento": "Documento (material)",
+    "conducao": "Condução", "conteudo": "Conteúdo",
+    "alto": "Alto", "medio": "Médio", "baixo": "Baixo",
+    "detalhada": "Com documento", "so_citada": "Só citada", "2026": "Checklists 2026"
+  };
+  var EST_UNIDADES = ["einstein", "sirio-libanes", "usp-ribeirao", "unifesp|R1", "unifesp|R+", "unifesp"];
+  var EST_TIPOS = ["formato-prova", "pontuacao", "soft-skills", "documento", "conducao", "conteudo"];
+  function rotEst(k) { return k === null || k === undefined || k === "" ? "—" : (ROTULOS_EST[k] || String(k)); }
+  function arrEst(v) { return Array.isArray(v) ? v : []; }
+  /* banca + modalidade (a Unifesp separa R1 e R+) */
+  function unidadeEst(e) { return e.banca === "unifesp" && (e.modalidade === "R1" || e.modalidade === "R+") ? "unifesp|" + e.modalidade : e.banca; }
+  function anoEst(e) { return typeof e.ano === "number" ? e.ano : null; }
+  function txtAnoEst(e) { return anoEst(e) === null ? "sem ano" : String(e.ano) + (e.periodo && e.periodo !== String(e.ano) ? " (" + e.periodo + ")" : ""); }
+  function pctEst(n, total) { return total ? Math.round(n * 100 / total) : 0; }
+  function normEst(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim(); }
+
+  /* conta etiquetas: fnChaves(e) → lista de chaves (cada uma conta 1 vez por registro) → [[chave, n]] desc */
+  function contarEst(lista, fnChaves) {
+    var m = {};
+    lista.forEach(function (e) {
+      var vistas = {};
+      fnChaves(e).forEach(function (k) { if (k === undefined || vistas[k]) return; vistas[k] = 1; m[k] = (m[k] || 0) + 1; });
+    });
+    return Object.keys(m).map(function (k) { return [k, m[k]]; }).sort(function (a, b) {
+      return b[1] - a[1] || rotEst(a[0]).localeCompare(rotEst(b[0]), "pt-BR");
+    });
+  }
+
+  /* ranking em barras horizontais: rótulo · barra (width % do maior) · número em texto (n e % do total) */
+  function barrasEst(pares, total, legenda) {
+    if (!pares.length) return h("p", { cls: "adm-vazio", txt: "Nada a mostrar com esses filtros." });
+    var max = pares[0][1] || 1;
+    return h("ol", { cls: "adm-est-barras", "aria-label": legenda },
+      pares.map(function (p) {
+        var fill = h("i");
+        fill.style.width = Math.max(2, Math.round(p[1] * 100 / max)) + "%";
+        return h("li", null,
+          h("span", { cls: "adm-est-rot", txt: rotEst(p[0]) }),
+          h("span", { cls: "adm-est-trilha", "aria-hidden": "true" }, fill),
+          h("span", { cls: "adm-est-num", txt: p[1] + (total ? " (" + pctEst(p[1], total) + "%)" : "") }));
+      }));
+  }
+
+  /* matriz com intensidade: linhas × colunas, célula = contagem (texto) + nível de cor (0–4) + total por linha */
+  function matrizEst(linhas, colunas, contar, rotLinha, rotColuna, cabLinha) {
+    if (!linhas.length || !colunas.length) return h("p", { cls: "adm-vazio", txt: "Nada a mostrar com esses filtros." });
+    var max = 0, cel = {};
+    linhas.forEach(function (l) { colunas.forEach(function (c) { var n = contar(l, c); cel[l + "\u0000" + c] = n; if (n > max) max = n; }); });
+    var trs = linhas.map(function (l) {
+      var tot = 0;
+      var tds = colunas.map(function (c) {
+        var n = cel[l + "\u0000" + c]; tot += n;
+        var nivel = n === 0 ? 0 : Math.max(1, Math.ceil(n * 4 / (max || 1)));
+        return h("td", { cls: "num adm-est-c" + nivel, title: rotLinha(l) + " · " + rotColuna(c) + ": " + n, txt: n === 0 ? "·" : String(n), "aria-label": String(n) });
+      });
+      return h("tr", null, h("th", { scope: "row", cls: "adm-est-lin", txt: rotLinha(l) }), tds, h("td", { cls: "num adm-est-tot", txt: String(tot) }));
+    });
+    return tabela([cabLinha].concat(colunas.map(function (c) { return { cls: "num", txt: rotColuna(c) }; })).concat([{ cls: "num", txt: "Total" }]), trs);
+  }
+
+  function telaEstatisticas(alvo) {
+    var aviso = h("div");
+    var area = h("div");
+    anexar(alvo, [
+      h("p", { cls: "adm-sub", txt: "Assuntos mais cobrados, soft skills e as maiores mudanças da prova e do material ao longo dos anos, nas 4 bancas, a partir da base histórica. Os dados ficam só no servidor (área do administrador)." }),
+      aviso, area
+    ]);
+    area.appendChild(carregando());
+    return API.estatisticasHistorico().then(function (d) {
+      limpar(area);
+      d = d && typeof d === "object" ? d : {};
+      var ests = arrEst(d.estacoes).filter(function (e) { return e && typeof e === "object"; });
+      if (!ests.length) {
+        area.appendChild(msg("aviso", "Ainda não há estatísticas no servidor. Gere os dados (node online/supabase/gerar-seed-estatisticas.mjs) e aplique a migração 013 no Supabase."));
+        return;
+      }
+      if (d.ficticio) aviso.appendChild(msg("aviso", "Dados FICTÍCIOS (teste ou demonstração): não use para decidir nada."));
+      montarEstatisticas(area, d, ests);
+    }).catch(function (e) {
+      limpar(area);
+      var m = String((e && e.message) || e);
+      if ((e && e.code === "PGRST202") || /Could not find the function|admin_estatisticas_historico/i.test(m)) {
+        area.appendChild(msg("erro", "A função admin_estatisticas_historico ainda não existe no servidor. Aplique a migração 013 no Supabase (online/supabase/migracoes/013_estatisticas_historico.sql, no SQL Editor)."));
+      } else area.appendChild(msg("erro", textoErro(e)));
+      console.error("[admin] estatísticas", e);
+    });
+  }
+
+  function montarEstatisticas(area, d, ests) {
+    var muds = arrEst(d.mudancas).filter(function (m) { return m && typeof m === "object"; });
+    var lacunas = d.lacunas && typeof d.lacunas === "object" ? d.lacunas : {};
+    var anos = ests.map(anoEst).concat(muds.map(anoEst)).filter(function (a) { return a !== null; });
+    var anoMin = Math.min.apply(null, anos.length ? anos : [new Date().getFullYear()]);
+    var anoMax = Math.max.apply(null, anos.length ? anos : [new Date().getFullYear()]);
+    var listaAnos = [];
+    for (var a = anoMin; a <= anoMax; a++) listaAnos.push([String(a), String(a)]);
+    var temSemArea = ests.some(function (e) { return !e.area; });
+    var areasPresentes = Object.keys(ests.reduce(function (m, e) { if (e.area) m[e.area] = 1; return m; }, {}))
+      .sort(function (x, y) { return rotEst(x).localeCompare(rotEst(y), "pt-BR"); });
+
+    /* filtros gerais */
+    var fBanca = selectDe([["", "Todas as bancas"], ["einstein", "Einstein"], ["sirio-libanes", "Sírio-Libanês"], ["usp-ribeirao", "USP Ribeirão Preto"],
+      ["unifesp", "Unifesp (R1 e R+)"], ["unifesp|R1", "Unifesp R1"], ["unifesp|R+", "Unifesp R+"]], "", { "aria-label": "Banca" });
+    var fDe = selectDe(listaAnos, String(anoMin), { "aria-label": "Do ano" });
+    var fAte = selectDe(listaAnos, String(anoMax), { "aria-label": "Até o ano" });
+    var fArea = selectDe([["", "Todas as áreas"]].concat(areasPresentes.map(function (x) { return [x, rotEst(x)]; }))
+      .concat(temSemArea ? [["_sem", "Sem área"]] : []), "", { "aria-label": "Área" });
+    var fCitados = h("input", { type: "checkbox" });
+    /* filtros das mudanças e busca da tabela (redesenham só a sua parte) */
+    var fImpacto = selectDe([["", "Todos os impactos"], ["alto", "Alto"], ["medio", "Médio"], ["baixo", "Baixo"]], "", { "aria-label": "Impacto" });
+    var fTipo = selectDe([["", "Todos os tipos"]].concat(EST_TIPOS.map(function (t) { return [t, rotEst(t)]; })), "", { "aria-label": "Tipo de mudança" });
+    var fBusca = h("input", { type: "search", placeholder: "Buscar tema, assunto, soft skill, fonte…", "aria-label": "Buscar estação" });
+
+    var resumo = h("div");
+    var secAssuntos = h("div"), secSoft = h("div"), secMud = h("div"), secTabela = h("div"), contagemTabela = h("p", { cls: "adm-sub" });
+    var secLacunas = h("div");
+
+    function irA(el) { return function () { if (el.scrollIntoView) el.scrollIntoView({ block: "start" }); }; }
+    var tAss = h("h3", { txt: "Assuntos" }), tSoft = h("h3", { txt: "Soft skills" }), tMud = h("h3", { txt: "Maiores mudanças" }), tTab = h("h3", { txt: "Todas as estações filtradas" });
+
+    anexar(area, [
+      h("div", { cls: "adm-barra adm-est-filtros" },
+        campo("Banca", fBanca), campo("De", fDe), campo("Até", fAte), campo("Área", fArea),
+        h("label", { cls: "adm-check adm-est-check" }, fCitados, "Incluir temas só citados")),
+      h("p", { cls: "adm-sub adm-est-nota", txt: "Desmarcado, contam só as estações com documento e os checklists de 2026; \"só citadas\" são as que aparecem apenas na lista do que caiu, sem o documento da estação." }),
+      resumo,
+      h("nav", { cls: "adm-est-ir", "aria-label": "Seções" },
+        h("span", { cls: "adm-sub", txt: "Ir para: " }),
+        botao("Assuntos", irA(tAss), "sec mini"), botao("Soft skills", irA(tSoft), "sec mini"),
+        botao("Mudanças", irA(tMud), "sec mini"), botao("Estações", irA(tTab), "sec mini")),
+      h("section", { cls: "adm-est-sec" }, tAss, secAssuntos),
+      h("section", { cls: "adm-est-sec" }, tSoft, secSoft),
+      h("section", { cls: "adm-est-sec" }, tMud,
+        h("div", { cls: "adm-barra" }, campo("Impacto", fImpacto), campo("Tipo", fTipo)),
+        secMud),
+      h("section", { cls: "adm-est-sec" }, tTab, h("div", { cls: "adm-barra" }, campo("Busca", fBusca)), contagemTabela, secTabela),
+      secLacunas,
+      h("p", { cls: "adm-sub adm-est-rodape", txt: "Ano = primeiro ano do período da prova (ex.: 2023/24 → 2023). Temas sem ano só entram quando o período está completo (" + anoMin + " a " + anoMax + "): contam nos rankings, na tabela e na coluna \"Sem ano\" das evoluções por ano; ficam fora da linha do tempo e dos temas que se repetem." +
+        (d.gerado_em ? " Dados gerados em " + new Date(d.gerado_em).toLocaleString("pt-BR") + "." : "") })
+    ]);
+
+    [fBanca, fDe, fAte, fArea, fCitados].forEach(function (c) { c.addEventListener("change", desenhar); });
+    [fImpacto, fTipo].forEach(function (c) { c.addEventListener("change", desenharMudancas); });
+    fBusca.addEventListener("input", desenharTabela);
+
+    var filtradas = [];
+    function periodo() {
+      var de = Number(fDe.value), ate = Number(fAte.value);
+      if (de > ate) { var t = de; de = ate; ate = t; }
+      return { de: de, ate: ate, completo: de === anoMin && ate === anoMax };
+    }
+    function bancaPassa(banca, unidade) {
+      var b = fBanca.value;
+      if (!b) return true;
+      return b.indexOf("|") >= 0 ? unidade === b : banca === b;
+    }
+    function anoPassa(ano, p) { return ano === null ? p.completo : ano >= p.de && ano <= p.ate; }
+
+    function desenhar() {
+      var p = periodo();
+      filtradas = ests.filter(function (e) {
+        if (!bancaPassa(e.banca, unidadeEst(e))) return false;
+        if (!anoPassa(anoEst(e), p)) return false;
+        if (!fCitados.checked && e.detalhe === "so_citada") return false;
+        if (fArea.value === "_sem" ? !!e.area : (fArea.value && e.area !== fArea.value)) return false;
+        return true;
+      });
+      desenharResumo(p);
+      desenharAssuntos();
+      desenharSoft();
+      desenharMudancas();
+      desenharTabela();
+      desenharLacunas();
+    }
+
+    function unidadesPresentes(lista) {
+      var m = {};
+      lista.forEach(function (e) { m[unidadeEst(e)] = 1; });
+      return EST_UNIDADES.filter(function (u) { return m[u]; });
+    }
+    function anosPresentes(lista) {
+      var m = {}, semAno = false;
+      lista.forEach(function (e) { var a = anoEst(e); if (a === null) semAno = true; else m[a] = 1; });
+      var l = Object.keys(m).map(Number).sort(function (x, y) { return x - y; });
+      return semAno ? l.concat(["sem"]) : l;
+    }
+    function rotAno(a) { return a === "sem" ? "Sem ano" : String(a); }
+    function mesmoAno(e, a) { return a === "sem" ? anoEst(e) === null : anoEst(e) === a; }
+
+    function desenharResumo(p) {
+      limpar(resumo);
+      var anosF = anosPresentes(filtradas).filter(function (a) { return a !== "sem"; });
+      var bancasF = {};
+      filtradas.forEach(function (e) { bancasF[e.banca] = 1; });
+      var citadasFora = fCitados.checked ? 0 : ests.filter(function (e) {
+        return e.detalhe === "so_citada" && bancaPassa(e.banca, unidadeEst(e)) && anoPassa(anoEst(e), p);
+      }).length;
+      var mudsF = muds.filter(function (m) { return bancaPassa(m.banca, m.banca === "unifesp" ? fBanca.value : m.banca) && anoPassa(anoEst(m), p); });
+      function cartao(num, rot, sub) {
+        return h("div", { cls: "adm-est-num-cartao" }, h("strong", { txt: num }), h("span", { txt: rot }), sub ? h("small", { txt: sub }) : null);
+      }
+      resumo.appendChild(h("div", { cls: "adm-est-resumo", role: "group", "aria-label": "Resumo em números" },
+        cartao(String(filtradas.length), "estações", citadasFora ? citadasFora + " só citada(s) fora da conta" : null),
+        cartao(anosF.length ? (anosF[0] === anosF[anosF.length - 1] ? String(anosF[0]) : anosF[0] + "–" + anosF[anosF.length - 1]) : "—", "anos cobertos", anosF.length + " ano(s) com estação"),
+        cartao(String(Object.keys(bancasF).length), Object.keys(bancasF).length === 1 ? "banca" : "bancas", Object.keys(bancasF).map(rotEst).join(", ") || null),
+        cartao(String(mudsF.length), "mudanças registradas", null)));
+      if (!filtradas.length) resumo.appendChild(msg("aviso", "Nenhuma estação com esses filtros."));
+    }
+
+    function desenharAssuntos() {
+      limpar(secAssuntos);
+      var total = filtradas.length;
+      var rank = contarEst(filtradas, function (e) { return arrEst(e.assuntos); });
+      var principal = contarEst(filtradas, function (e) { return arrEst(e.assuntos).slice(0, 1); });
+      var linhas = rank.map(function (p) { return p[0]; });
+      var unidades = unidadesPresentes(filtradas);
+      var anosL = anosPresentes(filtradas);
+      anexar(secAssuntos, [
+        h("h4", { txt: "Ranking: estações por assunto" }),
+        h("p", { cls: "adm-sub", txt: "Cada estação conta uma vez por assunto (até 3 por estação). Percentual sobre " + total + " estação(ões)." }),
+        barrasEst(rank, total, "Assuntos mais cobrados"),
+        rank.length ? h("details", null, h("summary", { txt: "Só o assunto principal (o primeiro de cada estação)" }), barrasEst(principal, total, "Assunto principal")) : null,
+        h("h4", { txt: "Assunto × banca" }),
+        matrizEst(linhas, unidades, function (l, u) {
+          return filtradas.filter(function (e) { return unidadeEst(e) === u && arrEst(e.assuntos).indexOf(l) >= 0; }).length;
+        }, rotEst, rotEst, "Assunto"),
+        h("h4", { txt: "Evolução por ano (assunto × ano)" }),
+        matrizEst(linhas, anosL, function (l, a) {
+          return filtradas.filter(function (e) { return mesmoAno(e, a) && arrEst(e.assuntos).indexOf(l) >= 0; }).length;
+        }, rotEst, rotAno, "Assunto"),
+        h("p", { cls: "adm-sub adm-est-legenda", txt: "Células: número de estações; quanto mais escuro, mais estações (\"·\" = nenhuma)." }),
+        h("h4", { txt: "Temas que se repetem (mesmo assunto em vários anos na mesma banca)" }),
+        tabelaRepeticoes(),
+        repeticoesTema()
+      ]);
+    }
+
+    function tabelaRepeticoes() {
+      var grupos = {};
+      filtradas.forEach(function (e) {
+        var a = anoEst(e); if (a === null) return;
+        arrEst(e.assuntos).forEach(function (s) {
+          var k = unidadeEst(e) + "\u0000" + s;
+          (grupos[k] = grupos[k] || { unidade: unidadeEst(e), assunto: s, anos: {}, temas: [] });
+          grupos[k].anos[a] = 1;
+          grupos[k].temas.push(a + ": " + e.tema);
+        });
+      });
+      var l = Object.keys(grupos).map(function (k) { var g = grupos[k]; g.listaAnos = Object.keys(g.anos).map(Number).sort(function (x, y) { return x - y; }); return g; })
+        .filter(function (g) { return g.listaAnos.length >= 2; })
+        .sort(function (x, y) { return y.listaAnos.length - x.listaAnos.length || EST_UNIDADES.indexOf(x.unidade) - EST_UNIDADES.indexOf(y.unidade) || rotEst(x.assunto).localeCompare(rotEst(y.assunto), "pt-BR"); });
+      if (!l.length) return h("p", { cls: "adm-vazio", txt: "Nenhum assunto aparece em mais de um ano na mesma banca com esses filtros." });
+      return tabela(["Banca", "Assunto", { cls: "num", txt: "Anos" }, "Em quais anos", "Temas"], l.map(function (g) {
+        g.temas.sort();
+        return h("tr", null, td(rotEst(g.unidade)), td(rotEst(g.assunto)), td(String(g.listaAnos.length), "num"), td(g.listaAnos.join(", ")),
+          td(g.temas.length > 3 ? h("details", null, h("summary", { txt: g.temas.length + " temas" }), h("ul", { cls: "adm-est-lista" }, g.temas.map(function (t) { return h("li", { txt: t }); })))
+            : h("ul", { cls: "adm-est-lista" }, g.temas.map(function (t) { return h("li", { txt: t }); }))));
+      }));
+    }
+    function repeticoesTema() {
+      var grupos = {};
+      filtradas.forEach(function (e) {
+        var a = anoEst(e); if (a === null || !e.tema) return;
+        var k = e.banca + "\u0000" + normEst(e.tema);
+        (grupos[k] = grupos[k] || { banca: e.banca, tema: e.tema, anos: {} }).anos[a] = 1;
+      });
+      var l = Object.keys(grupos).map(function (k) { return grupos[k]; }).filter(function (g) { return Object.keys(g.anos).length >= 2; });
+      if (!l.length) return null;
+      return h("details", null, h("summary", { txt: "Mesmo tema (texto igual) em anos diferentes: " + l.length }),
+        tabela(["Banca", "Tema", "Anos"], l.map(function (g) {
+          return h("tr", null, td(rotEst(g.banca)), td(g.tema), td(Object.keys(g.anos).sort().join(", ")));
+        })));
+    }
+
+    function desenharSoft() {
+      limpar(secSoft);
+      var total = filtradas.length;
+      var semSoft = filtradas.filter(function (e) { return !arrEst(e.soft_skills).length; }).length;
+      var rank = contarEst(filtradas, function (e) { return arrEst(e.soft_skills); });
+      var linhas = rank.map(function (p) { return p[0]; });
+      var modelos = contarEst(filtradas, function (e) { return arrEst(e.modelos); });
+      anexar(secSoft, [
+        h("h4", { txt: "Ranking: estações por soft skill" }),
+        h("p", { cls: "adm-sub", txt: "Percentual sobre " + total + " estação(ões); " + semSoft + " sem eixo de soft skill identificado (comum na USP Ribeirão e na Unifesp, que não avaliam soft skills à parte)." }),
+        barrasEst(rank, total, "Soft skills mais cobradas"),
+        h("h4", { txt: "Soft skill × banca" }),
+        matrizEst(linhas, unidadesPresentes(filtradas), function (l, u) {
+          return filtradas.filter(function (e) { return unidadeEst(e) === u && arrEst(e.soft_skills).indexOf(l) >= 0; }).length;
+        }, rotEst, rotEst, "Soft skill"),
+        h("h4", { txt: "Evolução por ano (soft skill × ano)" }),
+        matrizEst(linhas, anosPresentes(filtradas), function (l, a) {
+          return filtradas.filter(function (e) { return mesmoAno(e, a) && arrEst(e.soft_skills).indexOf(l) >= 0; }).length;
+        }, rotEst, rotAno, "Soft skill"),
+        h("h4", { txt: "Modelos de comunicação mais citados" }),
+        barrasEst(modelos, total, "Modelos de comunicação")
+      ]);
+    }
+
+    function desenharMudancas() {
+      limpar(secMud);
+      var p = periodo();
+      var l = muds.filter(function (m) {
+        // mudanças não têm modalidade: "Unifesp R1" ou "R+" mostra as da Unifesp
+        if (fBanca.value && m.banca !== fBanca.value.split("|")[0]) return false;
+        if (anoEst(m) === null || m.ano < p.de || m.ano > p.ate) return false;
+        if (fImpacto.value && m.impacto !== fImpacto.value) return false;
+        if (fTipo.value && m.tipo !== fTipo.value) return false;
+        return true;
+      });
+      var semAno = muds.filter(function (m) { return anoEst(m) === null; }).length;
+      if (!l.length) { secMud.appendChild(h("p", { cls: "adm-vazio", txt: "Nenhuma mudança com esses filtros." })); return; }
+      var altas = l.filter(function (m) { return m.impacto === "alto"; }).length;
+      secMud.appendChild(h("p", { cls: "adm-sub", txt: l.length + " mudança(s), " + altas + " de impacto alto (destacadas)." + (semAno ? " " + semAno + " sem ano ficam fora da linha do tempo." : "") }));
+      ["einstein", "sirio-libanes", "usp-ribeirao", "unifesp"].forEach(function (b) {
+        var daBanca = l.filter(function (m) { return m.banca === b; }).sort(function (x, y) { return x.ano - y.ano || String(x.titulo).localeCompare(String(y.titulo), "pt-BR"); });
+        if (!daBanca.length) return;
+        secMud.appendChild(h("h4", { txt: rotEst(b) + " (" + daBanca.length + ")" }));
+        secMud.appendChild(h("ol", { cls: "adm-est-tempo", "aria-label": "Linha do tempo: " + rotEst(b) }, daBanca.map(function (m) {
+          var alto = m.impacto === "alto";
+          return h("li", { cls: "adm-est-mud" + (alto ? " alto" : "") },
+            h("div", { cls: "adm-est-mud-cab" },
+              h("span", { cls: "adm-est-ano", txt: String(m.ano) }),
+              h("span", { cls: "adm-tag pendente", txt: rotEst(m.tipo) }),
+              h("span", { cls: "adm-est-imp " + (m.impacto || ""), txt: (alto ? "▲ " : "") + "Impacto " + rotEst(m.impacto).toLowerCase() })),
+            h("strong", { cls: "adm-est-mud-tit", txt: m.titulo || "—" }),
+            (m.antes || m.depois) ? h("p", { cls: "adm-est-antes-depois" },
+              h("span", null, h("em", { txt: "Antes: " }), m.antes || "—"),
+              h("span", { cls: "adm-est-seta", "aria-hidden": "true", txt: " → " }),
+              h("span", null, h("em", { txt: "Depois: " }), m.depois || "—")) : null,
+            m.fonte ? h("small", { cls: "adm-sub", txt: "Fonte: " + m.fonte }) : null);
+        })));
+      });
+    }
+
+    function desenharTabela() {
+      limpar(secTabela);
+      var b = normEst(fBusca.value);
+      var l = filtradas.filter(function (e) {
+        if (!b) return true;
+        return normEst([e.tema, e.eixo_soft, e.fonte, e.periodo, rotEst(unidadeEst(e)), rotEst(e.area)]
+          .concat(arrEst(e.assuntos).map(rotEst), arrEst(e.soft_skills).map(rotEst), arrEst(e.modelos)).join(" ")).indexOf(b) >= 0;
+      }).sort(function (x, y) {
+        var ax = anoEst(x) === null ? -1 : x.ano, ay = anoEst(y) === null ? -1 : y.ano;
+        return ay - ax || EST_UNIDADES.indexOf(unidadeEst(x)) - EST_UNIDADES.indexOf(unidadeEst(y)) || String(x.tema).localeCompare(String(y.tema), "pt-BR");
+      });
+      contagemTabela.textContent = l.length + " de " + filtradas.length + " estação(ões).";
+      if (!l.length) { secTabela.appendChild(h("p", { cls: "adm-vazio", txt: "Nenhuma estação com esses filtros." })); return; }
+      secTabela.appendChild(tabela(["Ano", "Banca", "Área", "Tema", "Assuntos", "Soft skills", "Fonte"], l.map(function (e) {
+        return h("tr", null,
+          td(txtAnoEst(e) + (e.dia ? " · " + e.dia : "")),
+          td(rotEst(unidadeEst(e)) + (e.modalidade === "multimidia" ? " · multimídia" : "")),
+          td(e.area ? rotEst(e.area) : "—"),
+          td([e.tema || "—", e.detalhe && e.detalhe !== "detalhada" ? [" ", h("span", { cls: "adm-tag pendente", txt: rotEst(e.detalhe) })] : null,
+            e.eixo_soft ? h("small", { cls: "adm-sub adm-est-bloco", txt: e.eixo_soft }) : null]),
+          td(arrEst(e.assuntos).map(rotEst).join(", ") || "—"),
+          td((arrEst(e.soft_skills).map(rotEst).join(", ") || "—") + (arrEst(e.modelos).length ? " (" + arrEst(e.modelos).join(", ") + ")" : "")),
+          td(e.fonte || "—"));
+      })));
+    }
+
+    function desenharLacunas() {
+      limpar(secLacunas);
+      var bancaBase = fBanca.value.split("|")[0];
+      var bancas = ["einstein", "sirio-libanes", "usp-ribeirao", "unifesp"].filter(function (b) { return !bancaBase || b === bancaBase; });
+      var total = bancas.reduce(function (s, b) { return s + arrEst(lacunas[b]).length; }, 0);
+      secLacunas.appendChild(h("details", { cls: "adm-est-lacunas" },
+        h("summary", { txt: "Lacunas (" + total + "): o que a base não permitiu afirmar" }),
+        total ? bancas.filter(function (b) { return arrEst(lacunas[b]).length; }).map(function (b) {
+          return [h("h4", { txt: rotEst(b) }), h("ul", { cls: "adm-est-lista" }, arrEst(lacunas[b]).map(function (x) { return h("li", { txt: x }); }))];
+        }) : h("p", { cls: "adm-vazio", txt: "Nenhuma lacuna registrada." })));
+    }
+
+    desenhar();
   }
 
   /* ------------------------------------------------------------------
