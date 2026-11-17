@@ -402,33 +402,28 @@
   }
 
   /* ------------------------------------------------------------------
-   * Abas da barra lateral ("Estações" | "Gerar com IA")
+   * Menu lateral único: a seção "IA: gerar e importar" é recolhível,
+   * acima da lista de estações (antes eram duas abas).
    * ------------------------------------------------------------------ */
   var CHAVE_ABA = "projetoEstacoes.estudio.aba";
   function mostrarAba(nome) {
-    var ia = nome === "ia";
-    $("aba-ia").setAttribute("aria-selected", ia ? "true" : "false");
-    $("aba-estacoes").setAttribute("aria-selected", ia ? "false" : "true");
-    $("aba-ia").tabIndex = ia ? 0 : -1;
-    $("aba-estacoes").tabIndex = ia ? -1 : 0;
-    $("painel-ia").hidden = !ia;
-    $("painel-estacoes").hidden = ia;
-    try { localStorage.setItem(CHAVE_ABA, ia ? "ia" : "estacoes"); } catch (e) { /* sem armazenamento */ }
-    document.dispatchEvent(new CustomEvent("aba-lateral", { detail: ia ? "ia" : "estacoes" }));
+    var d = $("dobra-ia");
+    if (!d) return;
+    if (nome === "ia") {
+      d.open = true;
+      try { d.scrollIntoView({ block: "start" }); } catch (e) { /* sem rolagem */ }
+    }
   }
   function ligarAbas() {
-    ["aba-estacoes", "aba-ia"].forEach(function (id) {
-      $(id).addEventListener("click", function () { mostrarAba(id === "aba-ia" ? "ia" : "estacoes"); });
-      $(id).addEventListener("keydown", function (ev) {
-        if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-          var outra = id === "aba-ia" ? "aba-estacoes" : "aba-ia";
-          mostrarAba(outra === "aba-ia" ? "ia" : "estacoes"); $(outra).focus(); ev.preventDefault();
-        }
-      });
+    var d = $("dobra-ia");
+    if (!d) return;
+    d.addEventListener("toggle", function () {
+      try { localStorage.setItem(CHAVE_ABA, d.open ? "ia" : "estacoes"); } catch (e) { /* sem armazenamento */ }
+      if (d.open) document.dispatchEvent(new CustomEvent("aba-lateral", { detail: "ia" }));
     });
     var salva = null;
     try { salva = localStorage.getItem(CHAVE_ABA); } catch (e) { salva = null; }
-    mostrarAba(salva === "ia" ? "ia" : "estacoes");
+    d.open = salva === "ia";
   }
 
   /* ------------------------------------------------------------------

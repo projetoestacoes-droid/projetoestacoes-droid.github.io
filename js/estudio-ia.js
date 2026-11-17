@@ -122,7 +122,6 @@
     var lbl = el("label", "btn btn-arquivo", "Adicionar arquivos…"); lbl.htmlFor = inp.id;
     f["l" + tipo] = el("ul", "lista-arquivos");
     ui.anexar(w, [rot, inp, lbl, f["l" + tipo]]);
-    if (tipo === "tec") w.appendChild(el("p", "dica", "A IA usa SOMENTE as referências enviadas; sem referência, usa a base/perfil da banca e registra a lacuna. PDF, TXT ou imagem, até 23 MB somando todas as referências. DOCX não é lido pela IA: salve como PDF."));
     return w;
   }
   function mensagem(t, tipo) { f.msg.textContent = t || ""; f.msg.className = "msg-form" + (tipo ? " " + tipo : ""); }
@@ -146,7 +145,6 @@
     f.aviso.setAttribute("role", "alert");
     f.aviso.hidden = true;
     painel.appendChild(f.aviso);
-    painel.appendChild(el("p", "es-sutil es-intro-ia", "Pedido de estação nova. Quem gera pode ser o Claude Code no seu computador (sem custo de API, quando você pedir) ou a API da Anthropic (automático, pago). A estação volta sempre como rascunho no estúdio, para editar, revisar e aprovar. Para transcrever um PDF (ex.: Checklists Dominados), use “Importar arquivos…” na aba Estações: o pedido aparece nesta lista e pode ir para o Claude Code pelo botão “Gerar pelo Claude Code”."));
 
     var form = el("form", "form-pedido"); form.noValidate = true;
     // Quem gera (padrão: Claude Code)

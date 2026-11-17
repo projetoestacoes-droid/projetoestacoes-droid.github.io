@@ -51,12 +51,7 @@
   </header>
 
   <aside class="lateral">
-    <div class="abas" role="tablist" aria-label="Barra lateral">
-      <button type="button" role="tab" id="aba-estacoes" aria-controls="painel-estacoes" aria-selected="true">Estações</button>
-      <button type="button" role="tab" id="aba-ia" aria-controls="painel-ia" aria-selected="false">IA: gerar e importar</button>
-    </div>
-
-    <section class="painel-aba painel-estacoes" id="painel-estacoes" role="tabpanel" aria-labelledby="aba-estacoes">
+    <section class="painel-estacoes" id="painel-estacoes" aria-label="Estações">
       <div class="filtros">
         <div class="es-acoes" aria-label="Ações">
           <button class="btn mini" type="button" id="es-nova">Nova em branco</button>
@@ -106,10 +101,12 @@
         <label class="chk es-chk"><input type="checkbox" id="filtro-arquivadas"> Mostrar arquivadas</label>
         <div class="es-msg" id="es-msg" role="status" aria-live="polite"></div>
       </div>
+      <details class="es-dobra-ia" id="dobra-ia">
+        <summary id="aba-ia">IA: gerar e importar</summary>
+        <div class="painel-nova es-painel-ia" id="painel-ia"></div>
+      </details>
       <nav class="lista" id="lista" aria-label="Estações"></nav>
     </section>
-
-    <section class="painel-aba painel-nova es-painel-ia" id="painel-ia" role="tabpanel" aria-labelledby="aba-ia" hidden></section>
   </aside>
 
   <main class="area-doc" id="area-doc">

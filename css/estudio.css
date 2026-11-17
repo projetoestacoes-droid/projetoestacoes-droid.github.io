@@ -76,8 +76,22 @@ body.es-bloqueado .barra, body.es-bloqueado .lateral, body.es-bloqueado .area-do
 .selo-ui.es-origem-nova, .selo-ui.es-origem-duplicada { color: #2F5DA8; background: #E3ECFA; border-color: #BCD0F0; }
 .selo-ui.es-publicada { color: #1E6B35; background: #fff; border-color: #A9DBB7; }
 
-/* ---------- Aba "IA: gerar e importar" ---------- */
-.es-painel-ia .es-intro-ia { margin: 0 0 10px; }
+/* ---------- Menu lateral único (a IA é uma seção recolhível acima da lista) ---------- */
+.lateral { overflow-y: auto; }
+.lateral .painel-estacoes { display: flex; flex-direction: column; flex: 1 0 auto; }
+.lateral .lista { flex: 1 0 auto; overflow: visible; min-height: auto; }
+.es-dobra-ia { border-bottom: 1px solid var(--ui-borda); }
+.es-dobra-ia > summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+  padding: 11px 16px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ui-texto);
+}
+.es-dobra-ia > summary::-webkit-details-marker { display: none; }
+.es-dobra-ia > summary::before { content: "▸"; font-size: 11px; transition: transform .15s; }
+.es-dobra-ia[open] > summary::before { transform: rotate(90deg); }
+.es-dobra-ia > summary:hover { background: rgba(0, 0, 0, .03); }
+.es-dobra-ia > summary:focus-visible { outline: 2px solid var(--ui-azul); outline-offset: -2px; }
+.es-dobra-ia .painel-nova { overflow: visible; padding-top: 4px; }
+@media (prefers-reduced-motion: reduce) { .es-dobra-ia > summary::before { transition: none; } }
 .es-aviso-ia {
   border: 1px solid #F0C79A; background: #FFF6E5; color: #6B4600; border-radius: 10px; padding: 9px 11px; margin-bottom: 12px;
   font-size: 12.5px; line-height: 1.45; display: grid; gap: 4px; grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere;

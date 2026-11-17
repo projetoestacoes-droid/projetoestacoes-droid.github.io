@@ -325,7 +325,7 @@
     var btCancelar = ui.botao("Cancelar", null, function () { if (!st.ocupado && st.fim) st.fim(null); });
     var btImportar = ui.botao("Importar com IA", "primario", function () { executar(); });
     var btVer = ui.botao("Ver pedidos", null, function () {
-      var aba = document.getElementById("aba-ia"); if (aba) aba.click();
+      if (window.App && App.mostrarAba) App.mostrarAba("ia");
       if (st.fim) st.fim(null);
     });
     btImportar.disabled = true; btVer.hidden = true;
