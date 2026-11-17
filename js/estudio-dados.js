@@ -184,7 +184,8 @@
     if (cod === "PGRST202" || /Could not find the function|rpc_inexistente/i.test(m)) {
       var r = String(e.rpc || m);
       var mig = /estudio_excluir/.test(r) ? "009_excluir_estacao.sql" : /claude_|gerar_definir_executor/.test(r) ? "010_pedidos_claude_code.sql" :
-        /estudio_soft_skills_sugestoes/.test(r) ? "008_soft_skills_sugestoes.sql" : "004_estudio.sql";
+        /estudio_soft_skills_sugestoes/.test(r) ? "008_soft_skills_sugestoes.sql" :
+        /estudio_previsualizar/.test(r) ? "011_previa_estudio.sql" : "004_estudio.sql";
       return ERROS.funcao_inexistente.replace("004_estudio.sql", mig) + " (" + r + ")";
     }
     if (ERROS[cod]) return ERROS[cod];
@@ -246,7 +247,10 @@
     definirExecutor: function (id, executor) { return rpc("gerar_definir_executor", { p_id: id, p_executor: executor }).then(umObjeto); },
     /* Soft skills já cobradas, por banca (migração 008): { "einstein": [textos], "sirio-libanes": [textos] }.
        A lista mora só no banco: nada dela vai escrito nos arquivos da casca. */
-    softSkillsSugestoes: function () { return rpc("estudio_soft_skills_sugestoes", {}).then(umObjeto); }
+    softSkillsSugestoes: function () { return rpc("estudio_soft_skills_sugestoes", {}).then(umObjeto); },
+    /* "Ver como…" (migração 011): o conteúdo na tela (pode ter alterações não salvas) passa pela MESMA
+       lista branca do servidor de cada perfil. papel: "aplicador" | "ator" | "aluno". Nada é gravado. */
+    previsualizar: function (conteudo, papel) { return rpc("estudio_previsualizar", { p_conteudo: conteudo, p_papel: papel }).then(umObjeto); }
   };
 
   /* ------------------------------------------------------------------

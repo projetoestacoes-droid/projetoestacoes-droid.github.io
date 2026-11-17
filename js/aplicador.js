@@ -37,7 +37,8 @@
     function euId() { var e = O.eu(); return e ? e.id : "anon"; }
     function chave(se, aluno) { return PREF + euId() + ":" + se + ":" + aluno; }
     function abrirIdb() {
-      if (idb || !window.indexedDB) return Promise.resolve(idb);
+      /* na prévia do Estúdio nada vai para o IndexedDB (ele é do site inteiro, não da aba) */
+      if (idb || !window.indexedDB || O.previa) return Promise.resolve(idb);
       return new Promise(function (ok) {
         try {
           var r = indexedDB.open("estacoes-online", 1);

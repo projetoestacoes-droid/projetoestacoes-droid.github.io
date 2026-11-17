@@ -43,14 +43,14 @@
       </select>
       <button class="btn" id="btn-editar" aria-pressed="false" type="button" title="Editar a estação direto no documento">Editar</button>
       <button class="btn" id="btn-revisao" aria-pressed="false" type="button">Modo revisão</button>
-      <button class="btn" id="btn-publicar" type="button" disabled title="Só estações com status “Aprovada” (Editar › Status › Aprovada › Salvar)">Publicar para aplicação</button>
+      <button class="btn" id="btn-previa" type="button" disabled title="Ver como aplicador, ator e aluno verão esta estação (filtro do servidor; nada é gravado)">Ver como…</button>
+      <button class="btn" id="btn-publicar" type="button" disabled title="Selecione uma estação.">Publicar para aplicação</button>
       <button class="btn primario" id="btn-imprimir" type="button">Imprimir / Salvar PDF</button>
     </div>
     <div class="es-quem" id="es-quem"></div>
   </header>
 
   <aside class="lateral">
-    <section class="painel-edicao" id="painel-edicao" aria-label="Modo edição" hidden></section>
     <div class="abas" role="tablist" aria-label="Barra lateral">
       <button type="button" role="tab" id="aba-estacoes" aria-controls="painel-estacoes" aria-selected="true">Estações</button>
       <button type="button" role="tab" id="aba-ia" aria-controls="painel-ia" aria-selected="false">IA: gerar e importar</button>
@@ -118,7 +118,11 @@
     <div id="documento" class="documento" lang="pt-BR"></div>
   </main>
 
-  <aside class="painel-revisao" id="painel-revisao" aria-label="Modo revisão"></aside>
+  <!-- Coluna da direita: Modo edição (em cima) e Modo revisão (embaixo); some quando os dois estão fechados -->
+  <div class="es-direita" id="es-direita">
+    <section class="painel-edicao" id="painel-edicao" aria-label="Modo edição" hidden></section>
+    <aside class="painel-revisao" id="painel-revisao" aria-label="Modo revisão"></aside>
+  </div>
 
   <div class="es-faixa-demo" id="es-faixa-demo" hidden></div>
 

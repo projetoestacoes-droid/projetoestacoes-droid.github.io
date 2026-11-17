@@ -158,11 +158,14 @@
     var aprovada = !!(x && x.dados && x.dados.status === "aprovada");
     var bp = $("btn-publicar");
     if (bp) {
-      bp.disabled = !x || !aprovada || !!estado.vista;
+      bp.disabled = !x || !x.dados || !!estado.vista;
+      bp.classList.toggle("es-pendente-aprovacao", !!(x && x.dados && !aprovada));
       bp.title = !x ? "Selecione uma estação." : estado.vista ? "Volte à versão atual para publicar." :
         aprovada ? "Publicar esta estação (versão salva no estúdio) para a área de aplicação." :
-        "Só estações com status “Aprovada”: Editar › Status › Aprovada › Salvar.";
+        "A estação ainda não está aprovada: ao clicar, você pode aprovar e publicar de uma vez.";
     }
+    var bv = $("btn-previa");
+    if (bv) bv.disabled = !x || !(estado.vista ? estado.vista.dados : x.dados);
     ["es-duplicar", "es-historico", "es-baixar", "es-arquivar", "es-excluir"].forEach(function (id) { var b = $(id); if (b) b.disabled = !x; });
     var ri = $("es-imagens-rot"); if (ri) ri.classList.toggle("es-desab", !x);
     var ii = $("es-imagens"); if (ii) ii.disabled = !x;
@@ -222,7 +225,7 @@
   function aplicarZoom() {
     var z = parseFloat($("opt-zoom").value) || 1;
     var area = $("area-doc");
-    if (document.body.classList.contains("com-revisao")) {
+    if (document.body.classList.contains("com-revisao") || document.body.classList.contains("modo-edicao")) {
       var cabe = (area.clientWidth - 32) / 794;
       if (cabe < z) z = Math.max(0.4, cabe);
     }
@@ -917,12 +920,77 @@
     var c = String(caminho || "").replace(/^\/+/, "");
     return c.indexOf(nomeBucket + "/") === 0 ? c.slice(nomeBucket.length + 1) : c;
   }
+  /* Contagem do modo revisão (o mesmo revisor do painel), para avisar antes de aprovar ou publicar */
+  function contagemRevisao(dados) {
+    var a = [];
+    try { a = window.revisarEstacao ? window.revisarEstacao(dados) || [] : []; } catch (e) { a = [{ nivel: "erro" }]; }
+    var n = function (nv) { return a.filter(function (x) { return x && x.nivel === nv; }).length; };
+    return { erros: n("erro"), avisos: n("aviso") };
+  }
+  function textoRevisao(c) {
+    if (!c.erros && !c.avisos) return "O modo revisão não aponta erros nem avisos.";
+    return "O modo revisão aponta " + c.erros + (c.erros === 1 ? " erro" : " erros") + " e " + c.avisos + (c.avisos === 1 ? " aviso" : " avisos") +
+      (c.erros ? ": confira (botão “Modo revisão”) antes de continuar." : ".");
+  }
+  /* Status ≠ aprovada: oferece aprovar (grava uma versão nova com status "aprovada") e publicar em seguida.
+     Resolve true (aprovou e pode publicar), "previa" (quer ver antes) ou false. */
+  function aprovarParaPublicar(x) {
+    var st = STATUS[x.dados.status] || x.dados.status || "sem status";
+    var c = contagemRevisao(x.dados);
+    return ui.dialogo("Aprovar e publicar?", [
+      el("p", null, ["“" + (x.dados.titulo || "") + "” está com status ", el("b", null, st), ". Só estações aprovadas vão para a área de aplicação."]),
+      el("p", null, "Aprovar grava a versão " + ((x.versao || 0) + 1) + " com status “Aprovada” (a versão " + (x.versao != null ? x.versao : "atual") + " continua no histórico) e publica em seguida."),
+      el("p", c.erros ? "es-aviso-erro" : "es-sutil", textoRevisao(c))
+    ], [
+      { rotulo: "Cancelar", valor: false },
+      { rotulo: "Ver como…", valor: "previa" },
+      { rotulo: "Aprovar e publicar", valor: true, primario: true }
+    ]).then(function (v) {
+      if (v === "previa") { abrirPrevia(); return false; }
+      if (v !== true) return false;
+      var ed = editor();
+      var sairEdicao = ed && ed.desligar && document.body.classList.contains("modo-edicao") ? ed.desligar() : true;
+      return Promise.resolve(sairEdicao).then(function (saiu) {
+        if (saiu === false) return false;
+        var antes = x.dados.status;
+        x.dados.status = "aprovada";
+        msg("Aprovando…");
+        return window.SalvarEstacao.salvar(x, {}).then(function (r) {
+          msg("Aprovada: versão " + (r && r.versao != null ? r.versao : x.versao) + " do estúdio.", "ok");
+          montarLista();
+          renderizar();
+          return true;
+        }, function (e) {
+          x.dados.status = antes;
+          atualizarBotoes();
+          msg("Não foi possível aprovar: " + ((e && e.message) || ui.textoErro(e)), "erro");
+          return false;
+        });
+      });
+    });
+  }
+  var publicando = false;
   function publicar() {
-    var x = atual(); if (!x || estado.vista) return;
-    if (x.dados.status !== "aprovada") { msg("Só estações com status “Aprovada” podem ser publicadas.", "erro"); return; }
+    var x = atual(); if (!x || !x.dados || estado.vista || publicando) return;
+    publicando = true;
+    var bp = $("btn-publicar"); if (bp) bp.disabled = true;
     return exigirSemPendencias("publicar").then(function (ok) {
       if (!ok) return;
-      return ui.confirmar("Publicar para aplicação?", "“" + (x.dados.titulo || "") + "” (" + nomeBanca(x.dados.banca) + "), versão " + x.versao + " do estúdio, vira uma versão congelada na área de aplicação (sessões, aplicadores e atores).", "Publicar")
+      if (x.dados.status !== "aprovada") return aprovarParaPublicar(x).then(function (aprovou) { if (aprovou) return publicarAprovada(x, true); });
+      return publicarAprovada(x, false);
+    }).catch(function (e) { msg("Não foi possível publicar: " + ui.textoErro(e), "erro"); })
+      .then(function () { publicando = false; atualizarBotoes(); });
+  }
+  function publicarAprovada(x, jaConfirmou) {
+      var pergunta = jaConfirmou ? Promise.resolve(true) : ui.dialogo("Publicar para aplicação?", [
+        el("p", null, "“" + (x.dados.titulo || "") + "” (" + nomeBanca(x.dados.banca) + "), versão " + x.versao + " do estúdio, vira uma versão congelada na área de aplicação (sessões, aplicadores e atores)."),
+        el("p", contagemRevisao(x.dados).erros ? "es-aviso-erro" : "es-sutil", textoRevisao(contagemRevisao(x.dados)))
+      ], [
+        { rotulo: "Cancelar", valor: false },
+        { rotulo: "Ver como…", valor: "previa" },
+        { rotulo: "Publicar", valor: true, primario: true }
+      ]).then(function (v) { if (v === "previa") { abrirPrevia(); return false; } return v === true; });
+      return pergunta
         .then(function (sim) {
           if (!sim) return;
           var log = el("ul", "es-log");
@@ -957,7 +1025,146 @@
             linha("erro", "Publicação recusada: " + ui.textoErro(e));
           }).then(function () { fechar.disabled = false; fechar.focus(); });
         });
+  }
+
+  /* ------------------------------------------------------------------
+   * Ver como… — prévia por perfil (aplicador, ator, aluno)
+   * Um iframe abre as TELAS REAIS do site de aplicação (index.html?previa=<papel>, mesma origem).
+   * O conteúdo é o que está na tela (inclusive alterações não salvas, ou a versão do histórico aberta)
+   * e passa pela MESMA lista branca do servidor (RPC estudio_previsualizar, migração 011).
+   * Contrato com online/js/previa.js: window.EstudioPrevia.obter(papel) → Promise<{titulo, area, banca, dia,
+   * resposta, imagens}>. Nada é gravado; sessão e alunos da prévia são fictícios.
+   * ------------------------------------------------------------------ */
+  var PERFIS_PREVIA = [["aplicador", "Aplicador(a)"], ["ator", "Ator / atriz"], ["aluno", "Aluno(a)"]];
+  var TAMANHOS_PREVIA = [["390", "Celular"], ["820", "Tablet"]];
+  var NOTAS_PREVIA = {
+    aplicador: "Recebe o material da estação, o checklist e os critérios para avaliar, a discussão e o cronômetro. Não recebe revisão, referências nem status.",
+    ator: "Recebe só o roteiro de atuação e, para entender a cena, o que o candidato recebe. Não vê checklist, critérios, orientações ao examinador, discussão nem notas.",
+    aluno: "Não recebe o material (propriedade da empresa). Vê só a situação da estação e, depois da liberação, título, nota total, nota por domínio e feedback."
+  };
+  var previa = { papel: "aplicador", largura: "390", no: null, quadro: null, chave: null, dados: null };
+  function dadosNaTela() {
+    var x = atual();
+    if (!x) return null;
+    return { x: x, dados: estado.vista ? estado.vista.dados : x.dados };
+  }
+  window.EstudioPrevia = {
+    fechar: function () { fecharPrevia(); },
+    obter: function (papel) {
+      var t = dadosNaTela();
+      if (!t || !t.dados) return Promise.reject(new Error("Nenhuma estação aberta no Estúdio."));
+      if (!PERFIS_PREVIA.some(function (p) { return p[0] === papel; })) return Promise.reject(new Error("Perfil inválido: " + papel));
+      var copia;
+      try { copia = JSON.parse(JSON.stringify(t.dados)); } catch (e) { return Promise.reject(e); }
+      return E.api.previsualizar(copia, papel).then(function (r) {
+        r = r || {};
+        mostrarAvisosPrevia(papel, r.avisos);
+        var c = r.conteudo || null;
+        var arqs = c ? imagensDoObjeto(c).filter(function (a) { return !/^(https?:|data:|blob:)/i.test(a); }) : [];
+        var p = arqs.length ? urlsImagens(t.x, c) : Promise.resolve({});
+        return p.then(function () {
+          var cache = estado.urls[t.x.id] || { mapa: {} }, imagens = {};
+          arqs.forEach(function (a) { if (cache.mapa[a]) imagens[a] = cache.mapa[a]; });
+          return { titulo: copia.titulo || "", area: copia.area || "", banca: copia.banca || "", dia: copia.dia || "", resposta: r, imagens: imagens };
+        });
+      }, function (e) { throw new Error(ui.textoErro(e)); });
+    }
+  };
+  /* Rascunho incompleto: o servidor devolve a prévia mesmo assim e explica o que não deu para calcular */
+  function mostrarAvisosPrevia(papel, avisos) {
+    if (!previa.nota || papel !== previa.papel) return;
+    var velho = previa.nota.querySelector(".es-previa-avisos");
+    if (velho) velho.parentNode.removeChild(velho);
+    var lst = (Array.isArray(avisos) ? avisos : []).filter(function (a) { return a != null && String(a).trim(); });
+    if (!lst.length) return;
+    previa.nota.appendChild(el("span", "es-previa-avisos", [el("br"), el("b", null, "Avisos do servidor: "), lst.map(String).join(" · ")]));
+  }
+  function montarPrevia() {
+    if (previa.no) return previa.no;
+    var titulo = el("h2", null, "Ver como…");
+    var perfis = el("div", "es-previa-perfis");
+    perfis.setAttribute("role", "group"); perfis.setAttribute("aria-label", "Perfil");
+    PERFIS_PREVIA.forEach(function (p) {
+      var b = ui.botao(p[1], "mini", function () { previa.papel = p[0]; carregarPrevia(); });
+      b.dataset.papel = p[0];
+      perfis.appendChild(b);
     });
+    var tam = el("div", "es-previa-tamanhos");
+    tam.setAttribute("role", "group"); tam.setAttribute("aria-label", "Tamanho da tela");
+    TAMANHOS_PREVIA.forEach(function (t) {
+      var b = ui.botao(t[1], "mini", function () { previa.largura = t[0]; ajustarPrevia(); });
+      b.dataset.largura = t[0];
+      tam.appendChild(b);
+    });
+    var atualizar = ui.botao("Atualizar", "mini", function () { carregarPrevia(); }, "Recarregar com o conteúdo que está na tela agora");
+    var fechar = ui.botao("Fechar", "primario", fecharPrevia);
+    var nota = el("p", "es-previa-nota");
+    var aparelho = el("div", "es-previa-aparelho");
+    var palco = el("div", "es-previa-palco", aparelho);
+    var caixa = el("div", "es-previa-caixa", [el("div", "es-previa-cab", [titulo, perfis, tam, atualizar, fechar]), nota, palco]);
+    var no = el("div", "es-previa", caixa);
+    no.setAttribute("role", "dialog"); no.setAttribute("aria-modal", "true"); no.setAttribute("aria-label", "Ver como cada perfil vê a estação");
+    no.hidden = true;
+    no.addEventListener("click", function (ev) { if (ev.target === no) fecharPrevia(); });
+    /* com a prévia aberta, nenhum atalho chega ao editor (⌘S, ⌘Z…) atrás dela; Esc fecha */
+    document.addEventListener("keydown", function (ev) {
+      if (!previa.no || previa.no.hidden) return;
+      if (ev.key === "Escape") { ev.preventDefault(); fecharPrevia(); return; }
+      if (ev.ctrlKey || ev.metaKey) ev.stopImmediatePropagation();
+    }, true);
+    document.body.appendChild(no);
+    previa.no = no; previa.fechar = fechar; previa.titulo = titulo; previa.perfis = perfis; previa.tam = tam; previa.nota = nota; previa.aparelho = aparelho;
+    return no;
+  }
+  function ajustarPrevia() {
+    Array.prototype.forEach.call(previa.perfis.children, function (b) { b.setAttribute("aria-pressed", b.dataset.papel === previa.papel ? "true" : "false"); });
+    Array.prototype.forEach.call(previa.tam.children, function (b) { b.setAttribute("aria-pressed", b.dataset.largura === previa.largura ? "true" : "false"); });
+    previa.aparelho.style.width = (Number(previa.largura) + 20) + "px";
+  }
+  function carregarPrevia() {
+    var t = dadosNaTela();
+    if (!t) return;
+    ajustarPrevia();
+    var d = t.dados || {};
+    ui.limpar(previa.titulo).appendChild(document.createTextNode("Ver como… · " + (d.titulo || "estação sem título")));
+    var pend = pendente(), vista = estado.vista;
+    ui.limpar(previa.nota);
+    ui.anexar(previa.nota, [
+      el("b", null, (PERFIS_PREVIA.filter(function (p) { return p[0] === previa.papel; })[0] || [])[1] + ": "), NOTAS_PREVIA[previa.papel] + " ",
+      vista ? "Mostrando a versão " + vista.versao + " do histórico. " : pend ? "Inclui as alterações ainda não salvas. " : "",
+      "Filtro do servidor (o mesmo da área de aplicação); sessão e alunos são fictícios e nada é gravado."
+    ]);
+    limparQuadroPrevia();
+    ui.limpar(previa.aparelho);
+    var f = document.createElement("iframe");
+    f.title = "Prévia: tela do perfil " + previa.papel;
+    f.src = "index.html?previa=" + encodeURIComponent(previa.papel);
+    previa.aparelho.appendChild(f);
+    previa.quadro = f;
+  }
+  function limparQuadroPrevia() {
+    try { var w = previa.quadro && previa.quadro.contentWindow; if (w && w.Previa && w.Previa.limpar) w.Previa.limpar(); } catch (e) { /* nada */ }
+  }
+  function abrirPrevia() {
+    if (!dadosNaTela()) { msg("Selecione uma estação.", "erro"); return; }
+    montarPrevia();
+    previa.no.hidden = false;
+    // o resto da página fica inerte (foco e leitores de tela só dentro da prévia)
+    previa.inertes = Array.prototype.filter.call(document.body.children, function (n) { return n !== previa.no && !n.inert; });
+    previa.inertes.forEach(function (n) { n.inert = true; });
+    carregarPrevia();
+    previa.fechar.focus();
+  }
+  function fecharPrevia() {
+    if (!previa.no) return;
+    previa.no.hidden = true;
+    (previa.inertes || []).forEach(function (n) { n.inert = false; });
+    previa.inertes = null;
+    // apaga o que a prévia guardou na aba e descarrega o iframe
+    limparQuadroPrevia();
+    ui.limpar(previa.aparelho);
+    previa.quadro = null;
+    var b = $("btn-previa"); if (b) b.focus();
   }
 
   /* ------------------------------------------------------------------
@@ -966,6 +1173,15 @@
   function ligarControles() {
     $("btn-imprimir").addEventListener("click", function () { window.print(); });
     $("btn-publicar").addEventListener("click", publicar);
+    $("btn-previa").addEventListener("click", abrirPrevia);
+    // a coluna da direita (edição/revisão) estreita o documento: reajusta o zoom quando ela abre ou fecha
+    var classeAntes = document.body.className;
+    new MutationObserver(function () {
+      var agora = document.body.className;
+      var mudou = /\bmodo-edicao\b/.test(agora) !== /\bmodo-edicao\b/.test(classeAntes);
+      classeAntes = agora;
+      if (mudou && estado.atual) aplicarZoom();
+    }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     $("opt-capa").addEventListener("change", renderizar);
     $("opt-zoom").addEventListener("change", aplicarZoom);
     window.addEventListener("resize", function () { if (estado.atual) aplicarZoom(); });

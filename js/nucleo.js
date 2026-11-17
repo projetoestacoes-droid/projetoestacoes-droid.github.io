@@ -24,12 +24,27 @@
  * ===================================================================== */
 (function () {
   "use strict";
-  /* Proteção contra exibir o site dentro de outra página (clickjacking); o GitHub Pages não envia cabeçalhos */
-  if (window.top !== window.self) { document.documentElement.style.display = "none"; try { window.top.location = window.self.location; } catch (e) { /* nada */ } return; }
+  var params = new URLSearchParams(location.search);
+  /* Modo prévia (?previa=aplicador|ator|aluno): as telas reais de cada perfil, com o conteúdo
+     que o Estúdio passa, SÓ dentro de um iframe do próprio Estúdio (mesma origem, com
+     window.EstudioPrevia). Nada vai ao servidor a partir daqui: os dados vêm do Estúdio (js/previa.js). */
+  var PAPEIS_PREVIA = { aplicador: true, ator: true, aluno: true };
+  var papelPrevia = PAPEIS_PREVIA.hasOwnProperty(params.get("previa") || "") ? params.get("previa") : null;
+  var dentroDoEstudio = false;
+  if (papelPrevia && window.top !== window.self) {
+    try {
+      dentroDoEstudio = window.parent.location.origin === location.origin &&
+        !!window.parent.EstudioPrevia && typeof window.parent.EstudioPrevia.obter === "function";
+    } catch (e) { dentroDoEstudio = false; }   /* pai de outra origem: o acesso lança */
+  }
+  /* Proteção contra exibir o site dentro de outra página (clickjacking); o GitHub Pages não envia cabeçalhos.
+     Única exceção: a prévia dentro do Estúdio (conferida acima). */
+  if (window.top !== window.self && !dentroDoEstudio) { document.documentElement.style.display = "none"; try { window.top.location = window.self.location; } catch (e) { /* nada */ } return; }
 
   var CFG = window.ONLINE_CONFIG || {};
-  var params = new URLSearchParams(location.search);
-  var MODO_DEMO = params.get("demo") === "1";
+  var MODO_PREVIA = !!(papelPrevia && dentroDoEstudio);
+  var PREVIA_FORA = !!(papelPrevia && !dentroDoEstudio);       /* ?previa=… aberto fora do Estúdio */
+  var MODO_DEMO = !MODO_PREVIA && !PREVIA_FORA && params.get("demo") === "1";
   var telas = {};
   var estado = { eu: null, iniciado: false };
   var ouvintesRede = [];
@@ -173,6 +188,11 @@
     return err;
   }
   function rpc(nome, args) {
+    if (MODO_PREVIA) {
+      if (!window.Previa) return Promise.reject(Object.assign(new Error("previa_indisponivel"), { code: "previa_indisponivel" }));
+      return Promise.resolve().then(function () { return window.Previa.rpc(nome, args || {}); })
+        .catch(function (e) { throw erroDe(e, nome); }).then(function (d) { return d; }, tratarSemPermissao);
+    }
     if (MODO_DEMO) {
       if (!window.Demo) return Promise.reject(Object.assign(new Error("demo_indisponivel"), { code: "demo_indisponivel" }));
       return window.Demo.rpc(nome, args || {}).catch(function (e) { throw erroDe(e, nome); }).then(function (d) { return d; }, tratarSemPermissao);
@@ -187,7 +207,7 @@
   }
   function tratarSemPermissao(err) {
     if (err && err.code === "sem_permissao") toast("Você não tem permissão para isso.", "erro");
-    if (err && err.code === "nao_autenticado" && !MODO_DEMO) { toast("Sua sessão expirou. Entre de novo.", "erro"); }
+    if (err && err.code === "nao_autenticado" && !MODO_DEMO && !MODO_PREVIA) { toast("Sua sessão expirou. Entre de novo.", "erro"); }
     throw err;
   }
 
@@ -347,11 +367,11 @@
       var antes = pilha[pilha.length - 1];
       if (antes && antes.aoSair) { try { antes.aoSair(); } catch (e) { console.error(e); } }
       pilha.push({ titulo: titulo, montar: montar, aoSair: null });
-      if (!op.raiz) history.pushState({ estacoes: pilha.length }, "");
+      if (!op.raiz && !MODO_PREVIA) history.pushState({ estacoes: pilha.length }, "");
       desenharTopo();
       return desenharAtual();
     },
-    voltar: function () { if (pilha.length > 1) history.back(); },
+    voltar: function () { if (pilha.length > 1) { if (MODO_PREVIA) voltarNaMemoria(); else history.back(); } },
     raiz: function (titulo, montar) {
       pilha.forEach(function (x) { if (x.aoSair) try { x.aoSair(); } catch (e) { console.error(e); } });
       pilha = [];
@@ -362,12 +382,13 @@
     atualizar: function () { return desenharAtual(); },
     titulo: function (t) { var x = pilha[pilha.length - 1]; if (x) { x.titulo = t; desenharTopo(); } }
   };
-  window.addEventListener("popstate", function () {
+  function voltarNaMemoria() {
     if (pilha.length <= 1) return;
     var saiu = pilha.pop();
     if (saiu && saiu.aoSair) { try { saiu.aoSair(); } catch (e) { console.error(e); } }
     desenharTopo(); desenharAtual();
-  });
+  }
+  window.addEventListener("popstate", function () { if (!MODO_PREVIA) voltarNaMemoria(); });
   function desenharAtual() {
     var area = document.getElementById("on-area");
     var t = pilha[pilha.length - 1];
@@ -387,7 +408,7 @@
       area.appendChild(el("div", "on-aviso on-aviso-erro", [el("p", null, msg), botao("Tentar de novo", "on-btn-sec", function () { desenharAtual(); })]));
     };
   }
-  function contexto() { return { eu: estado.eu, demo: MODO_DEMO, nav: nav, Online: Online }; }
+  function contexto() { return { eu: estado.eu, demo: MODO_DEMO, previa: MODO_PREVIA, nav: nav, Online: Online }; }
 
   /* ------------------------------------------------------------------
    * Casca da página: topo, área, rodapé
@@ -411,7 +432,7 @@
     var slot = el("span", "on-topo-slot"); slot.id = "on-topo-slot"; dir.appendChild(slot);
     if (estado.eu) {
       dir.appendChild(el("span", "on-quem", [el("b", null, estado.eu.nome || ""), el("span", "on-quem-perfil", NOMES_PERFIL[estado.eu.perfil] || estado.eu.perfil)]));
-      dir.appendChild(botao("Sair", "on-btn-sec on-btn-peq", sair));
+      if (!MODO_PREVIA) dir.appendChild(botao("Sair", "on-btn-sec on-btn-peq", sair));
     }
     topo.appendChild(dir);
     atualizarSelo();
@@ -493,6 +514,7 @@
     area.appendChild(el("p", "on-carregando", "Carregando…"));
     /* sem conexão: usa o "eu" já confirmado nesta aba (a fila de avaliações continua funcionando) */
     return rpc("eu").then(function (eu) {
+      if (MODO_PREVIA) return eu;            /* a prévia não guarda o "eu" na aba */
       try { if (eu) sessionStorage.setItem("estacoes-eu", JSON.stringify(eu)); else sessionStorage.removeItem("estacoes-eu"); } catch (x) { /* nada */ }
       return eu;
     }, function (e) {
@@ -521,7 +543,7 @@
       limpar(area);
       if (e && e.code === "rede") {
         area.appendChild(el("div", "on-aviso on-aviso-erro", [el("p", null, "Sem conexão. Assim que a internet voltar, toque em tentar de novo."), botao("Tentar de novo", "on-btn-sec", rotear)]));
-      } else if (!MODO_DEMO && e && /jwt|auth|token/i.test(e.message || "")) {
+      } else if (!MODO_DEMO && !MODO_PREVIA && e && /jwt|auth|token/i.test(e.message || "")) {
         telaLogin();
       } else mostrarErro(area)(e);
     });
@@ -598,6 +620,34 @@
     });
   }
 
+  /* ----- Modo prévia do Estúdio: dados do Estúdio (iframe da mesma origem), sem login nem servidor ----- */
+  function iniciarPrevia() {
+    var area = casca();
+    area.appendChild(el("p", "on-carregando", "Montando a prévia…"));
+    document.body.classList.add("on-modo-previa");
+    var faixa = document.getElementById("on-faixa-demo");
+    if (faixa) {
+      limpar(faixa).appendChild(el("span", null, [el("b", null, "Prévia do Estúdio: "), "sessão e alunos fictícios; nada é gravado."]));
+      faixa.hidden = false;
+    }
+    return carregarScript("js/previa.js").then(function () {
+      if (!window.Previa) throw new Error("js/previa.js não carregou");
+      return window.Previa.iniciar(papelPrevia);
+    }).then(function () { return rotear(); }, function (e) {
+      limpar(area).appendChild(el("div", "on-aviso on-aviso-erro", [
+        el("p", null, el("b", null, "Não foi possível montar a prévia.")),
+        el("p", null, String((e && e.message) || e || "erro"))
+      ]));
+    });
+  }
+  function telaPreviaFora() {
+    var area = casca();
+    area.appendChild(el("section", "on-cartao", [
+      el("h1", null, "Prévia"),
+      el("p", null, "A prévia só abre dentro do Estúdio.")
+    ]));
+  }
+
   /* ----- Modo demonstração: backend falso em memória (demo.js), perfis fictícios ----- */
   function iniciarDemo() {
     var area = casca();
@@ -637,14 +687,16 @@
   var Online = window.Online = {
     sb: null,
     demo: MODO_DEMO,
+    previa: MODO_PREVIA,
     config: CFG,
     rpc: rpc,
     eu: function () { return estado.eu; },
     registrarTela: function (perfil, def) { telas[perfil] = def; },
     el: el, md: md, limpar: limpar, botao: botao, fmt: fmt, fmtData: fmtData,
     toast: toast, confirmar: confirmar, perguntar: perguntar,
-    renderFluxo: renderFluxo, urlImagem: function (pub, arq) { return MODO_DEMO ? window.Demo.urlImagem(pub, arq) : urlImagem(pub, arq); },
-    imagensDaEstacao: function (se) { return MODO_DEMO ? window.Demo.imagensDaEstacao(se) : imagensDaEstacao(se); },
+    renderFluxo: renderFluxo,
+    urlImagem: function (pub, arq) { return MODO_PREVIA ? window.Previa.urlImagem(pub, arq) : MODO_DEMO ? window.Demo.urlImagem(pub, arq) : urlImagem(pub, arq); },
+    imagensDaEstacao: function (se) { return MODO_PREVIA ? window.Previa.imagensDaEstacao(se) : MODO_DEMO ? window.Demo.imagensDaEstacao(se) : imagensDaEstacao(se); },
     estaOnline: estaOnline, aoMudarRede: aoMudarRede,
     antesDeSair: function (fn) { antesDeSair.push(fn); },
     nav: nav,
@@ -655,6 +707,8 @@
 
   function iniciar() {
     if (estado.iniciado) return; estado.iniciado = true;
+    if (PREVIA_FORA) { telaPreviaFora(); return; }
+    if (MODO_PREVIA) { iniciarPrevia(); return; }
     if (MODO_DEMO) {
       var local = /^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(location.hostname);
       if (!local) { casca().appendChild(el("p", "on-aviso", "O modo demonstração só funciona no computador local.")); return; }

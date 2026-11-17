@@ -11,7 +11,7 @@
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .es-portao[hidden] { display: none; }
-body.es-bloqueado .barra, body.es-bloqueado .lateral, body.es-bloqueado .area-doc, body.es-bloqueado .painel-revisao { visibility: hidden; }
+body.es-bloqueado .barra, body.es-bloqueado .lateral, body.es-bloqueado .area-doc, body.es-bloqueado .painel-revisao, body.es-bloqueado .es-direita { visibility: hidden; }
 .es-cartao {
   background: #fff; border: 1px solid var(--ui-borda); border-radius: 14px; padding: 22px 24px; width: min(420px, 100%);
   box-shadow: 0 8px 30px rgba(20, 30, 60, .12); display: grid; gap: 10px;
@@ -58,6 +58,7 @@ body.es-bloqueado .barra, body.es-bloqueado .lateral, body.es-bloqueado .area-do
 .es-quem .btn-link { font-size: 12.5px; }
 #btn-publicar:not([disabled]) { border-color: #A9DBB7; color: #1E6B35; font-weight: 600; }
 #btn-publicar:not([disabled]):hover { background: #F2FBF4; }
+#btn-publicar.es-pendente-aprovacao:not([disabled]) { border-color: var(--ui-borda); color: inherit; font-weight: 400; }
 
 /* ---------- Barra lateral ---------- */
 .es-acoes { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -149,11 +150,11 @@ dialog.es-dialogo-largo { max-width: 720px; }
 }
 .es-faixa-demo[hidden] { display: none; }
 .es-faixa-demo label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
-body.es-com-demo .lista, body.es-com-demo .area-doc, body.es-com-demo .painel-revisao, body.es-com-demo .painel-nova { padding-bottom: 46px; }
+body.es-com-demo .lista, body.es-com-demo .area-doc, body.es-com-demo .painel-revisao, body.es-com-demo .painel-nova, body.es-com-demo .es-direita { padding-bottom: 46px; }
 
 /* ---------- Impressão: só o documento (igual ao visualizador local) ---------- */
 @media print {
-  .es-portao, .es-faixa-demo, .es-toasts, .es-banner, .es-quem, dialog { display: none !important; }
+  .es-portao, .es-faixa-demo, .es-toasts, .es-banner, .es-quem, dialog, .es-direita, .es-previa { display: none !important; }
   body.es-bloqueado .area-doc { visibility: visible; }
   body.es-com-demo .area-doc { padding-bottom: 0 !important; }
 }
@@ -166,3 +167,39 @@ body.es-com-demo .lista, body.es-com-demo .area-doc, body.es-com-demo .painel-re
 }
 .es-excluir-alvo { font-weight: 700; color: var(--ui-erro); overflow-wrap: anywhere; user-select: all; }
 dialog.es-dialogo .btn.perigo:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- Coluna da direita: Modo edição + Modo revisão ----------
+   O painel de edição do editor (app/js/editor.js, #painel-edicao) fica aqui, e não na
+   barra lateral da esquerda. Só no estúdio: o visualizador local continua como era. */
+.es-direita {
+  grid-row: 2; grid-column: 3; width: 380px; min-height: 0; overflow: hidden;
+  display: none; flex-direction: column; background: #fff; border-left: 1px solid var(--ui-borda);
+}
+body.modo-edicao .es-direita, body.com-revisao .es-direita { display: flex; }
+.es-direita .painel-edicao { flex: 1 1 auto; max-height: none; min-height: 0; align-content: start; border-bottom: 0; }
+body.com-revisao .es-direita .painel-edicao { flex: 0 0 auto; max-height: 60%; border-bottom: 2px solid var(--ui-azul); }
+.es-direita .painel-revisao { width: auto; flex: 1 1 0; min-height: 120px; border-left: 0; }
+@media (max-width: 1100px) { .es-direita { width: 320px; } }
+
+/* ---------- Ver como… (prévia por perfil, iframe com as telas reais do site) ---------- */
+.es-previa {
+  position: fixed; inset: 0; z-index: 70; background: rgba(15, 22, 40, .72);
+  display: flex; align-items: stretch; justify-content: center; padding: 18px;
+}
+.es-previa[hidden] { display: none; }
+.es-previa-caixa {
+  background: var(--ui-fundo, #F4F5F8); border-radius: 12px; width: min(1180px, 100%); display: grid;
+  grid-template-rows: auto auto 1fr; min-height: 0; overflow: hidden; box-shadow: 0 12px 40px rgba(0, 0, 0, .35);
+}
+.es-previa-cab { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--ui-borda); }
+.es-previa-cab h2 { margin: 0; font-size: 16px; flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.es-previa-perfis, .es-previa-tamanhos { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.es-previa-nota { margin: 0; padding: 8px 16px; font-size: 12.5px; line-height: 1.45; color: var(--ui-suave); background: #fff; border-bottom: 1px solid var(--ui-borda); }
+.es-previa-nota b { color: var(--ui-texto); }
+.es-previa-palco { overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 18px; min-height: 0; }
+.es-previa-aparelho {
+  flex: none; height: 100%; min-height: 520px; background: #fff; border: 10px solid #1d2433; border-radius: 26px;
+  overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, .25); transition: width .2s;
+}
+.es-previa-aparelho iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+.es-previa-erro { max-width: 520px; margin: 40px auto; color: var(--ui-erro); line-height: 1.45; }
