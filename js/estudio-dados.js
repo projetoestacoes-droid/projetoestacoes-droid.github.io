@@ -230,7 +230,10 @@
     criarPedido: function (dados) { return rpc("gerar_criar_pedido", { p_dados: dados }).then(umObjeto); },
     listarPedidos: function () { return rpc("gerar_listar_pedidos", {}).then(lista); },
     obterPedido: function (id) { return rpc("gerar_obter_pedido", { p_id: id }).then(umObjeto); },
-    cancelarPedido: function (id) { return rpc("gerar_cancelar_pedido", { p_id: id }); }
+    cancelarPedido: function (id) { return rpc("gerar_cancelar_pedido", { p_id: id }); },
+    /* Soft skills já cobradas, por banca (migração 008): { "einstein": [textos], "sirio-libanes": [textos] }.
+       A lista mora só no banco: nada dela vai escrito nos arquivos da casca. */
+    softSkillsSugestoes: function () { return rpc("estudio_soft_skills_sugestoes", {}).then(umObjeto); }
   };
 
   /* ------------------------------------------------------------------

@@ -31,6 +31,27 @@ body.es-bloqueado .barra, body.es-bloqueado .lateral, body.es-bloqueado .area-do
 .es-linha-botoes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .es-linha-botoes a.btn { text-decoration: none; color: inherit; }
 
+/* ---------- Nova em branco: soft skills (Einstein e Sírio-Libanês) ---------- */
+.es-ss { border: 0; border-top: 1px solid var(--ed-texto, var(--ui-borda)); margin: 4px 0 0; padding: 10px 0 0; min-width: 0; display: grid; gap: 6px; }
+.es-ss[hidden] { display: none; }
+.es-ss legend { padding: 0 8px 0 0; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ed-texto, var(--ui-texto)); }
+.es-form-dialogo .es-ss-rot { display: block; font-size: 12.5px; font-weight: 600; }
+.es-form-dialogo .es-ss-estado { margin: 0; }
+.es-ss-estado[hidden], .es-form-dialogo .es-ss-rot[hidden] { display: none; }
+.es-ss-lista {
+  display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start; max-height: min(188px, 32vh); overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px; border: 1px solid var(--ui-borda); border-radius: var(--ed-raio, 2px); background: #fff; margin-bottom: 4px;
+}
+.es-ss-lista[hidden] { display: none; }
+.es-ss-lista .btn { white-space: normal; text-align: left; font-size: 12.5px; font-weight: 400; line-height: 1.3; padding: 4px 8px; max-width: 100%; overflow-wrap: anywhere; }
+.es-ss-lista .btn.es-ss-op[aria-pressed="true"] { font-weight: 600; }
+.es-ss-propria { display: inline-flex; max-width: 100%; }
+.es-ss-lista .es-ss-propria .es-ss-op { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.es-ss-lista .es-ss-propria .es-ss-remover { margin-left: -1px; flex: none; padding: 4px 8px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.es-ss-nova { display: flex; gap: 6px; align-items: stretch; }
+.es-form-dialogo .es-ss-nova input { flex: 1; min-width: 0; width: auto; }
+.es-ss-nova .btn { flex: none; }
+
 /* ---------- Barra superior ---------- */
 .es-quem { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ui-suave); white-space: nowrap; }
 .es-quem .es-nome { font-weight: 600; color: var(--ui-texto); }

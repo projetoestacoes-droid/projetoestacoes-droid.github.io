@@ -436,14 +436,140 @@
     return ui.dialogo("Há alterações não salvas", "Antes de " + oQue + ", salve (Editar › Salvar) ou descarte as alterações da estação aberta.", [{ rotulo: "Entendi", valor: false, primario: true }])
       .then(function () { return false; });
   }
+  /* Bancas com soft skills (o mesmo critério de COM_SOFT em estudio-ia.js) */
+  var COM_SOFT = { "einstein": true, "sirio-libanes": true };
+  /* chave de comparação: sem maiúsculas, acentos nem espaços sobrando */
+  function chaveSS(s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim(); }
+  /* texto aceitável: pelo menos uma letra ou dígito (recusa "...", ";" etc.) */
+  function temConteudoSS(s) { return /[\p{L}\p{N}]/u.test(String(s || "")); }
+  /* textos limpos e sem duplicatas (mantém a primeira grafia) */
+  function limparSoftSkills(lst) {
+    var vistas = {}, out = [];
+    (Array.isArray(lst) ? lst : []).forEach(function (t) {
+      var s = String(t == null ? "" : t).replace(/\s+/g, " ").trim(), k = chaveSS(s);
+      if (k && temConteudoSS(s) && !vistas[k]) { vistas[k] = true; out.push(s); }
+    });
+    return out;
+  }
+  /* Sugestões de soft skills já cobradas (RPC estudio_soft_skills_sugestoes, migração 008), uma vez por sessão.
+     Falha não fica no cache: a próxima abertura do diálogo tenta de novo. */
+  var cacheSugestoesSS = null;
+  function sugestoesSoftSkills() {
+    if (!cacheSugestoesSS) {
+      cacheSugestoesSS = E.api.softSkillsSugestoes().then(function (r) {
+        var mapa = {};
+        Object.keys(COM_SOFT).forEach(function (b) { mapa[b] = limparSoftSkills(r && typeof r === "object" ? r[b] : null); });
+        return mapa;
+      });
+      cacheSugestoesSS.catch(function () { cacheSugestoesSS = null; });
+    }
+    return cacheSugestoesSS;
+  }
+  /* Bloco "Soft skills (opcional)" do diálogo Nova em branco.
+     → { no, mostrar(banca, area), valor() } ; valor() inclui o texto digitado e ainda não adicionado.
+     Some na área "Procedimento" (procedimento do Einstein é só técnico). */
+  function blocoSoftSkills() {
+    var banca = null, ativo = false, sugestoes = null, falhou = false;
+    var marcadasPorBanca = {};   // banca → { chave: true } (sugestões marcadas em cada banca)
+    var proprias = [];           // { texto, sel } digitadas pelo usuário (valem para qualquer banca com soft skills)
+    function marcadas() { return marcadasPorBanca[banca] || (marcadasPorBanca[banca] = {}); }
+    function sugDaBanca() { return (sugestoes && banca && sugestoes[banca]) || []; }
+    function propriaDe(k) { return proprias.filter(function (p) { return chaveSS(p.texto) === k; })[0] || null; }
+    var rotLista = el("div", "es-ss-rot", "Já cobradas pela banca"); rotLista.id = "es-ss-rot-lista";
+    var estado = el("p", "es-sutil es-peq es-ss-estado"); estado.setAttribute("aria-live", "polite");
+    var lista = el("div", "es-ss-lista"); lista.setAttribute("role", "group"); lista.setAttribute("aria-labelledby", "es-ss-rot-lista");
+    var rotProprias = el("div", "es-ss-rot", "Adicionadas por você"); rotProprias.id = "es-ss-rot-proprias";
+    var listaP = el("div", "es-ss-lista es-ss-lista-proprias"); listaP.setAttribute("role", "group"); listaP.setAttribute("aria-labelledby", "es-ss-rot-proprias");
+    var campo = el("input"); campo.type = "text"; campo.id = "es-ss-nova"; campo.maxLength = 160; campo.placeholder = "Ex.: comunicação com familiar em luto";
+    campo.setAttribute("autocomplete", "off");
+    var btAdd = ui.botao("Adicionar", "mini", function () { adicionar(campo.value, true); campo.focus(); });
+    var rotNova = el("label", "es-ss-rot", "Outra soft skill"); rotNova.htmlFor = "es-ss-nova";
+    var no = el("fieldset", "es-ss", [el("legend", null, "Soft skills (opcional)"), rotLista, estado, lista, rotProprias, listaP, rotNova, el("div", "es-ss-nova", [campo, btAdd])]);
+    no.hidden = true;
+
+    function chip(texto, sel, aoClicar) {
+      var b = ui.botao(texto, "mini es-ss-op", aoClicar);
+      b.setAttribute("aria-pressed", sel ? "true" : "false");
+      return b;
+    }
+    function desenhar() {
+      var ae = document.activeElement;
+      var foco = ae && (lista.contains(ae) || listaP.contains(ae)) ? ae.getAttribute("data-ss") : null;
+      ui.limpar(lista); ui.limpar(listaP);
+      var sug = sugDaBanca(), m = marcadas(), chavesSug = {};
+      sug.forEach(function (t) {
+        var k = chaveSS(t), p = propriaDe(k);
+        chavesSug[k] = true;
+        // digitada igual a uma sugestão desta banca: aparece como a sugestão (sem duplicata), sem sair de "proprias"
+        var b = chip(t, !!m[k] || !!(p && p.sel), function () {
+          var sel = !!m[k] || !!(p && p.sel);
+          m[k] = !sel; if (p) p.sel = !sel;
+          desenhar();
+        });
+        b.setAttribute("data-ss", "s:" + k);
+        lista.appendChild(b);
+      });
+      proprias.forEach(function (p, i) {
+        var k = chaveSS(p.texto);
+        if (chavesSug[k]) return;
+        var b = chip(p.texto, p.sel, function () { p.sel = !p.sel; desenhar(); });
+        b.setAttribute("data-ss", "p:" + k);
+        var x = ui.botao("×", "mini es-ss-remover", function () { proprias.splice(i, 1); desenhar(); campo.focus(); }, "Remover");
+        x.setAttribute("aria-label", "Remover “" + p.texto + "”");
+        listaP.appendChild(el("span", "es-ss-propria", [b, x]));
+      });
+      lista.hidden = rotLista.hidden = !lista.firstChild;
+      listaP.hidden = rotProprias.hidden = !listaP.firstChild;
+      if (!sugestoes && !falhou) estado.textContent = "Carregando sugestões…";
+      else if (falhou) estado.textContent = "Sugestões indisponíveis no momento; digite a soft skill abaixo.";
+      else estado.textContent = sug.length ? "" : "Nenhuma soft skill registrada para esta banca; digite abaixo.";
+      estado.hidden = !estado.textContent;
+      if (foco) { var alvo = no.querySelector('[data-ss="' + foco.replace(/["\\]/g, "\\$&") + '"]'); if (alvo) alvo.focus(); }
+    }
+    function adicionar(texto, limparCampo) {
+      var t = String(texto || "").replace(/\s+/g, " ").trim();
+      if (limparCampo) campo.value = "";
+      if (!t || !temConteudoSS(t)) return;
+      var k = chaveSS(t);
+      if (sugDaBanca().some(function (s) { return chaveSS(s) === k; })) marcadas()[k] = true;
+      else {
+        var ja = propriaDe(k);
+        if (ja) ja.sel = true; else proprias.push({ texto: t, sel: true });
+      }
+      desenhar();
+    }
+    campo.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); ev.stopPropagation(); adicionar(campo.value, true); }
+    });
+    sugestoesSoftSkills().then(function (m) { sugestoes = m; falhou = false; desenhar(); }, function (e) {
+      console.warn("Sugestões de soft skills indisponíveis:", e);
+      falhou = true; desenhar();
+    });
+    desenhar();
+    return {
+      no: no,
+      mostrar: function (b, area) { banca = b; ativo = !!COM_SOFT[b] && area !== "Procedimento"; no.hidden = !ativo; desenhar(); },
+      valor: function () {
+        if (!ativo) return [];
+        if (campo.value.trim()) adicionar(campo.value, true);
+        var m = marcadas(), out = [];
+        sugDaBanca().forEach(function (t) { var k = chaveSS(t), p = propriaDe(k); if (m[k] || (p && p.sel)) out.push(t); });
+        proprias.forEach(function (p) { if (p.sel) out.push(p.texto); });
+        return limparSoftSkills(out);
+      }
+    };
+  }
   function hoje() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
   function slug(s) {
     return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "estacao";
   }
 
   /* Esqueleto mínimo válido (app/esquema/ESQUEMA.md), com um elemento-modelo em cada seção
-     para tudo ficar clicável no editor (inserir/duplicar/excluir a partir dele). */
-  function esqueleto(banca, titulo, area) {
+     para tudo ficar clicável no editor (inserir/duplicar/excluir a partir dele).
+     softSkills: textos escolhidos no diálogo (só Einstein e Sírio-Libanês). Com escolha, viram o
+     parágrafo "Eixo de soft skills" no início de soft_skills.blocos e um ponto de atenção da revisão;
+     sem escolha, o esqueleto fica como antes. */
+  function esqueleto(banca, titulo, area, softSkills) {
     var ESC = {
       "einstein": ["valor-pontos", 30], "sirio-libanes": ["sim-nao-valor", 100], "usp-ribeirao": ["sim-parcial-nao", null],
       "unifesp-r1": ["sim-nao-pontos", 10], "unifesp-rmais": ["sim-nao-pontos", 10], "tradicional": ["sim-nao-valor", 100]
@@ -453,6 +579,15 @@
     var criterios = [{ dominio: "Competências técnicas", texto: "Descrever o que será avaliado.", pontos: ein ? 30 : null }];
     if (ein) criterios.push({ dominio: "Comunicação", texto: "Descrever o que será avaliado.", pontos: 70 });
     var ano = String(new Date().getFullYear() + 1);
+    var ss = COM_SOFT[banca] ? limparSoftSkills(softSkills) : [];
+    var eixo = ss.length ? { tipo: "paragrafo", texto: "**Eixo de soft skills:** " + ss.map(function (t) { return t.replace(/[\s.;]+$/, ""); }).join("; ") + "." } : null;
+    var discussaoSoft = { tipo: "paragrafo", texto: "Discussão de soft skills…" };
+    var softSkillsObj = null;
+    if (ein) softSkillsObj = { total_esperado: 70, itens: [{ dominio: "Comunicação", descricao: "Nova descrição.", valor: 70, refs: [] }], blocos: eixo ? [eixo, discussaoSoft] : [discussaoSoft], referencias: [] };
+    // HSL: seção Soft Skills narrativa (revisao.js, perfil "texto"): sem itens nem total, para não pontuar à parte (SS-09)
+    else if (eixo) softSkillsObj = { total_esperado: null, itens: [], blocos: [eixo, discussaoSoft], referencias: [] };
+    var pontos = ["Estação criada em branco no estúdio: preencher todas as seções e as referências."];
+    if (ss.length) pontos.push("Soft skills escolhidas na criação: " + ss.join("; ") + ".");
     return {
       versao_esquema: 1,
       id: hoje() + "-" + banca + "-" + slug(titulo),
@@ -470,13 +605,13 @@
       orientacoes_ator: { rotulo: "ORIENTAÇÕES AO ATOR:", blocos: [{ tipo: "lista", itens: ["Responder apenas ao que for perguntado."] }, { tipo: "fala", gatilho: "Se questionado sobre…", texto: "\"Nova fala.\"" }] },
       checklist: { titulo_bloco: usp ? "Checklist fornecido pela banca examinadora" : "Competências técnicas", escala: ESC[0], total_esperado: ESC[1],
         grupos: [{ tarefa: usp ? "1" : "TAREFA 1", titulo: null, itens: [item] }] },
-      soft_skills: ein ? { total_esperado: 70, itens: [{ dominio: "Comunicação", descricao: "Nova descrição.", valor: 70, refs: [] }], blocos: [{ tipo: "paragrafo", texto: "Discussão de soft skills…" }], referencias: [] } : null,
+      soft_skills: softSkillsObj,
       discussao_banca: usp ? [{ tipo: "paragrafo", texto: "Comentário sobre o padrão da banca." }] : [],
       discussao_tecnica: { titulo: "DISCUSSÃO TÉCNICA", blocos: [{ tipo: "paragrafo", texto: "Novo parágrafo da discussão.", refs: [] }] },
       sugestoes_frases: [],
       referencias: ["Nova referência."],
       referencias_imagens: [],
-      revisao: { lacunas: [], pontos_atencao: ["Estação criada em branco no estúdio: preencher todas as seções e as referências."], ineditismo: "" }
+      revisao: { lacunas: [], pontos_atencao: pontos, ineditismo: "" }
     };
   }
   function novaEmBranco() {
@@ -488,17 +623,22 @@
         ui.limpar(sa);
         AREAS.concat(sb.value === "einstein" ? ["Procedimento"] : []).forEach(function (a) { var o = el("option", null, a); o.value = a; sa.appendChild(o); });
       };
-      areas(); sb.addEventListener("change", areas);
+      var ss = blocoSoftSkills();
+      areas(); ss.mostrar(sb.value, sa.value);
+      sb.addEventListener("change", function () { areas(); ss.mostrar(sb.value, sa.value); });
+      sa.addEventListener("change", function () { ss.mostrar(sb.value, sa.value); });
       var ti = el("input"); ti.type = "text"; ti.placeholder = "Tema da estação";
       var erro = el("p", "es-aviso-erro"); erro.hidden = true;
-      var corpo = el("div", "es-form-dialogo", [el("label", null, ["Banca", sb]), el("label", null, ["Grande área", sa]), el("label", null, ["Título", ti]), erro]);
+      var corpo = el("div", "es-form-dialogo", [el("label", null, ["Banca", sb]), el("label", null, ["Grande área", sa]), el("label", null, ["Título", ti]), ss.no, erro]);
       return ui.dialogo("Nova estação em branco", [el("p", null, "Cria um esqueleto mínimo no formato da banca (status rascunho). Depois, edite clicando no documento."), corpo],
-        [{ rotulo: "Cancelar", valor: null }, { rotulo: "Criar", primario: true, valor: function () { return { banca: sb.value, area: sa.value, titulo: ti.value.trim() }; } }],
+        [{ rotulo: "Cancelar", valor: null }, { rotulo: "Criar", primario: true, valor: function () {
+          return { banca: sb.value, area: sa.value, titulo: ti.value.trim(), soft_skills: ss.valor() };
+        } }],
         { validar: function (v) { return v.titulo ? null : "Informe o título."; }, aoErro: function (t) { erro.textContent = t; erro.hidden = false; ti.focus(); } })
         .then(function (v) {
           if (!v) return;
           msg("Criando…");
-          return E.api.criar(esqueleto(v.banca, v.titulo, v.area), "nova").then(function (r) {
+          return E.api.criar(esqueleto(v.banca, v.titulo, v.area, v.soft_skills), "nova").then(function (r) {
             return recarregarLista().then(function () { return abrirPorId(r && r.id, true); }).then(function () {
               msg("Estação criada." + (r && r.aviso === "id_repetido" ? " Atenção: outra estação do estúdio tem o mesmo id no JSON (mude o id antes de publicar as duas)." : ""), "ok");
               ui.toast("Estação em branco criada. Clique em “Editar” para preencher.", "ok");
