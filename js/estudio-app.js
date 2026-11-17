@@ -405,7 +405,7 @@
    * Menu lateral único: a seção "IA: gerar e importar" é recolhível,
    * acima da lista de estações (antes eram duas abas).
    * ------------------------------------------------------------------ */
-  var CHAVE_ABA = "projetoEstacoes.estudio.aba";
+  var CHAVE_ABA = "projetoEstacoes.estudio.dobraIA"; // chave nova: a antiga (abas) não abre a seção sozinha
   function mostrarAba(nome) {
     var d = $("dobra-ia");
     if (!d) return;
