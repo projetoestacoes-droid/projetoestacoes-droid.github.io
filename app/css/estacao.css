@@ -414,6 +414,23 @@ ol.lista-ref > li::before { content: counter(ref) "."; position: absolute; left:
 .capa.com-arte .arcos-capa, .capa.com-arte .logo-capa, .capa.com-arte .titulo-capa,
 .capa.com-arte .ilustracao-reservada, .capa.com-arte .marca-capa { display: none; }
 
+/* ===== Marcas de texto: ==destaque== e {cor:NOME}…{/cor} (render.js, md()) =====
+ * Sem escopo de .pagina: valem também nas telas do site de aplicação (aplicador, ator).
+ * Saem na impressão (print-color-adjust: exact). Cores escuras o bastante para ler no papel. */
+.md-destaque {
+  background: #FFF0A3; color: #1d2433; padding: 0 1pt; border-radius: 1.5pt;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.md-cor { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.md-cor .md-destaque { color: inherit; }   /* texto colorido e destacado mantém a cor */
+.md-cor-azul { color: #1F4FA8; }
+.md-cor-vermelho { color: #B42318; }
+.md-cor-verde { color: #1E6B35; }
+.md-cor-laranja { color: #B54708; }
+.md-cor-roxo { color: #6B3FA0; }
+.md-cor-cinza { color: #59606B; }
+
 /* ===== Impressão ===== */
 @media print {
   html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }

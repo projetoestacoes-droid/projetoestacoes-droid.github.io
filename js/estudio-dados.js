@@ -185,7 +185,8 @@
       var r = String(e.rpc || m);
       var mig = /estudio_excluir/.test(r) ? "009_excluir_estacao.sql" : /claude_|gerar_definir_executor/.test(r) ? "010_pedidos_claude_code.sql" :
         /estudio_soft_skills_sugestoes/.test(r) ? "008_soft_skills_sugestoes.sql" :
-        /estudio_previsualizar/.test(r) ? "011_previa_estudio.sql" : "004_estudio.sql";
+        /estudio_previsualizar/.test(r) ? "011_previa_estudio.sql" :
+        /estudio_revisados|estudio_marcar_revisado/.test(r) ? "012_revisados_estudio.sql" : "004_estudio.sql";
       return ERROS.funcao_inexistente.replace("004_estudio.sql", mig) + " (" + r + ")";
     }
     if (ERROS[cod]) return ERROS[cod];
@@ -250,7 +251,13 @@
     softSkillsSugestoes: function () { return rpc("estudio_soft_skills_sugestoes", {}).then(umObjeto); },
     /* "Ver como…" (migração 011): o conteúdo na tela (pode ter alterações não salvas) passa pela MESMA
        lista branca do servidor de cada perfil. papel: "aplicador" | "ator" | "aluno". Nada é gravado. */
-    previsualizar: function (conteudo, papel) { return rpc("estudio_previsualizar", { p_conteudo: conteudo, p_papel: papel }).then(umObjeto); }
+    previsualizar: function (conteudo, papel) { return rpc("estudio_previsualizar", { p_conteudo: conteudo, p_papel: papel }).then(umObjeto); },
+    /* "Revisado" por bloco no modo edição (migração 012): marcas por hash do conteúdo do bloco,
+       gravadas na hora (sem depender do Salvar) e nunca publicadas. */
+    revisados: function (id) { return rpc("estudio_revisados", { p_id: id }).then(lista); },
+    marcarRevisado: function (id, hash, caminho, marcado) {
+      return rpc("estudio_marcar_revisado", { p_id: id, p_hash: hash, p_caminho: caminho || null, p_marcado: !!marcado }).then(umObjeto);
+    }
   };
 
   /* ------------------------------------------------------------------

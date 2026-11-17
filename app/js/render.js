@@ -57,27 +57,41 @@
   function vazio(v) { return v == null || (typeof v === "string" && v.trim() === "") || (Array.isArray(v) && v.length === 0); }
   function arr(v) { return Array.isArray(v) ? v : (v == null ? [] : [v]); }
 
-  /* **negrito**, *itálico*, quebra de linha "\n" -> <br>. Marcadores sem par ficam literais
-     (ex.: "Artéria Coronária Direita*"). */
+  /* **negrito**, *itálico*, ==destaque==, {cor:NOME}texto{/cor} e quebra de linha "\n" -> <br>.
+     Marcadores sem par ficam literais (ex.: "Artéria Coronária Direita*"); {cor:...} com NOME
+     fora de CORES_MD também. Saída: <b>, <i>, <mark class="md-destaque">,
+     <span class="md-cor md-cor-NOME" data-cor="NOME"> (ESQUEMA.md, "Marcas de texto"). */
+  var CORES_MD = { azul: 1, vermelho: 1, verde: 1, laranja: 1, roxo: 1, cinza: 1 };
+  var RX_MD = /(\*\*|\*|==|\{cor:[a-z]+\}|\{\/cor\}|\n)/;
+  function corAbre(t) { var m = /^\{cor:([a-z]+)\}$/.exec(t); return m && CORES_MD[m[1]] ? m[1] : null; }
+  /* índices dos marcadores que têm par (os demais saem como texto) */
+  function paresMd(tokens) {
+    var abre = { "**": [], "*": [], "==": [] }, cores = [], valido = {};
+    tokens.forEach(function (t, i) {
+      if (t === "**" || t === "*" || t === "==") {
+        var pilha = abre[t];
+        if (pilha.length) { var j = pilha.pop(); valido[i] = valido[j] = true; }
+        else pilha.push(i);
+      } else if (corAbre(t)) cores.push(i);
+      else if (t === "{/cor}" && cores.length) { var k = cores.pop(); valido[i] = valido[k] = true; }
+    });
+    return valido;
+  }
   function md(texto) {
     var frag = document.createDocumentFragment();
     var s = txt(texto);
     if (!s) return frag;
-    var tokens = s.split(/(\*\*|\*|\n)/);
-    // emparelha marcadores
-    var abre = { "**": [], "*": [] }, valido = {};
-    tokens.forEach(function (t, i) {
-      if (t === "**" || t === "*") {
-        var pilha = abre[t];
-        if (pilha.length) { var j = pilha.pop(); valido[i] = valido[j] = true; }
-        else pilha.push(i);
-      }
-    });
-    var negrito = false, italico = false;
+    var tokens = s.split(RX_MD);
+    var valido = paresMd(tokens);
+    var negrito = false, italico = false, destaque = false, cores = [];
     tokens.forEach(function (t, i) {
       if (t === "") return;
-      if ((t === "**" || t === "*") && valido[i]) {
-        if (t === "**") negrito = !negrito; else italico = !italico;
+      if (valido[i]) {
+        if (t === "**") negrito = !negrito;
+        else if (t === "*") italico = !italico;
+        else if (t === "==") destaque = !destaque;
+        else if (t === "{/cor}") cores.pop();
+        else cores.push(corAbre(t));
         return;
       }
       if (t === "\n") { frag.appendChild(document.createElement("br")); return; }
@@ -91,6 +105,11 @@
         } else no = document.createTextNode(parte);
         if (italico) { var ie = document.createElement("i"); ie.appendChild(no); no = ie; }
         if (negrito) { var be = document.createElement("b"); be.appendChild(no); no = be; }
+        if (destaque) { var me = document.createElement("mark"); me.className = "md-destaque"; me.appendChild(no); no = me; }
+        if (cores.length) {
+          var cor = cores[cores.length - 1], ce = document.createElement("span");
+          ce.className = "md-cor md-cor-" + cor; ce.setAttribute("data-cor", cor); ce.appendChild(no); no = ce;
+        }
         frag.appendChild(no);
       });
     });
@@ -134,9 +153,13 @@
   /* md() aplicado a pedaços separados dá o mesmo resultado que no texto inteiro
      quando cada pedaço tem marcadores ** e * em número par */
   function mdEquilibrado(s) {
-    var t = txt(s).split(/(\*\*|\*)/), n2 = 0, n1 = 0;
-    t.forEach(function (x) { if (x === "**") n2++; else if (x === "*") n1++; });
-    return n2 % 2 === 0 && n1 % 2 === 0;
+    var t = txt(s).split(RX_MD), n2 = 0, n1 = 0, nd = 0, prof = 0, ok = true;
+    t.forEach(function (x) {
+      if (x === "**") n2++; else if (x === "*") n1++; else if (x === "==") nd++;
+      else if (corAbre(x)) prof++;
+      else if (x === "{/cor}") { if (prof) prof--; else ok = false; }
+    });
+    return ok && prof === 0 && n2 % 2 === 0 && n1 % 2 === 0 && nd % 2 === 0;
   }
 
   /* ------------------------------------------------------------------
@@ -1343,6 +1366,7 @@
     diagramar: diagramar,
     montarFluxo: montarFluxo,
     md: md,
+    CORES_MD: Object.keys(CORES_MD),
     fmtValor: fmtValor,
     _teste: { cortar: cortar, contarPalavras: contarPalavras } // só para testes automatizados
   };

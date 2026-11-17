@@ -230,15 +230,34 @@ var revisarEstacao = (function (raiz) {
 
   function iguais(a, b) { return num(a) && num(b) && Math.abs(a - b) < 0.001; }
 
+  /* Marcas de texto do mini-markdown (render.js): ==destaque== e {cor:NOME}…{/cor} somem nas comparações */
+  var CORES_MD = { azul: 1, vermelho: 1, verde: 1, laranja: 1, roxo: 1, cinza: 1 };
+  function semMarcas(s) { return str(s).replace(/==/g, "").replace(/\{cor:[a-z]+\}|\{\/cor\}/g, ""); }
+  /* problemas nas marcas novas: "==" sem par, {cor:NOME} com NOME fora da lista, {cor:…} sem {/cor} ou {/cor} sobrando */
+  function problemaMarcas(v) {
+    var t = String(v), out = [];
+    if ((t.split("==").length - 1) % 2 !== 0) out.push("destaque == aberto e não fechado");
+    var prof = 0, sobra = false, inval = [];
+    (t.match(/\{cor:[^}]*\}|\{\/cor\}/g) || []).forEach(function (m) {
+      if (m === "{/cor}") { if (prof) prof--; else sobra = true; return; }
+      var nome = m.slice(5, -1);
+      if (CORES_MD[nome]) prof++; else inval.push(nome || "(vazio)");
+    });
+    if (inval.length) out.push("cor desconhecida (" + inval.join(", ") + "; use azul, vermelho, verde, laranja, roxo ou cinza)");
+    if (prof) out.push("{cor:…} sem {/cor}");
+    if (sobra) out.push("{/cor} sem abertura");
+    return out;
+  }
+
   function normaliza(s) {
-    return str(s).toLowerCase()
+    return semMarcas(s).toLowerCase()
       .replace(/[áàâã]/g, "a").replace(/[éê]/g, "e").replace(/[í]/g, "i")
       .replace(/[óôõ]/g, "o").replace(/[ú]/g, "u").replace(/[ç]/g, "c")
       .replace(/\s+/g, " ").trim();
   }
 
   function contaPalavras(s) {
-    var t = str(s).replace(/\*+/g, " ").trim();
+    var t = semMarcas(s).replace(/\*+/g, " ").trim();
     return t ? t.split(/\s+/).length : 0;
   }
 
@@ -320,7 +339,7 @@ var revisarEstacao = (function (raiz) {
   }
 
   function nomeItem(x) {
-    var t = str(x.item.texto).replace(/\*\*|\*/g, "").trim();
+    var t = semMarcas(x.item.texto).replace(/\*\*|\*/g, "").trim();
     var curto = t.length > 60 ? t.slice(0, 57) + "..." : t;
     return "item " + (x.g + 1) + "." + (x.i + 1) + (curto ? " (\"" + curto + "\")" : "");
   }
@@ -1014,7 +1033,7 @@ var revisarEstacao = (function (raiz) {
 
   /* ---------- 4.9 Português ---------- */
   function regrasPortugues(e, ctx, add) {
-    var lim = { vazio: 0, duplo: 0, negrito: 0, pont: 0, marcador: 0 };
+    var lim = { vazio: 0, duplo: 0, negrito: 0, pont: 0, marcador: 0, marcas: 0 };
     var MAX = 8;
     var ignorar = { id: 1, banca: 1, status: 1, edicao: 1, versao_esquema: 1, escala: 1, tipo: 1, arquivo: 1 };
     percorre(e, [], function (v, caminho, chave) {
@@ -1035,6 +1054,10 @@ var revisarEstacao = (function (raiz) {
       if (neg % 2 !== 0) {
         if (lim.negrito++ < MAX) add("aviso", sec, "Marcação ** desbalanceada (negrito aberto e não fechado) em " + onde + ".", "PT-03");
       }
+      var pm = problemaMarcas(v);
+      if (pm.length) {
+        if (lim.marcas++ < MAX) add("aviso", sec, "Marca de texto com problema em " + onde + ": " + pm.join("; ") + ".", "PT-07");
+      }
       if (/\S [,.;:!?](\s|$)/.test(v) && !/\.\.\./.test(v)) {
         if (lim.pont++ < MAX) add("aviso", sec, "Espaço antes de pontuação em " + onde + ".", "PT-04");
       }
@@ -1043,7 +1066,7 @@ var revisarEstacao = (function (raiz) {
         if (lim.marcador++ < MAX) add("aviso", sec, "Marcador de esqueleto/rascunho não preenchido em " + onde + ".", "PT-05");
       }
     });
-    var nomes = { vazio: "textos vazios", duplo: "espaços duplos", negrito: "negritos desbalanceados", pont: "espaços antes de pontuação", marcador: "marcadores de rascunho" };
+    var nomes = { vazio: "textos vazios", duplo: "espaços duplos", negrito: "negritos desbalanceados", pont: "espaços antes de pontuação", marcador: "marcadores de rascunho", marcas: "marcas de destaque ou cor com problema" };
     var ks = Object.keys(lim);
     for (var i = 0; i < ks.length; i++) {
       if (lim[ks[i]] > MAX) add("aviso", "Português", "Há mais " + (lim[ks[i]] - MAX) + " ocorrências de " + nomes[ks[i]] + " não listadas.", "PT-06");
